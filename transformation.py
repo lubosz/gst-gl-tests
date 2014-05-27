@@ -1,11 +1,26 @@
 #!/usr/bin/env python3
 
+videouri = "file:///home/bmonkey/workspace/ges/data/hd/sintel_trailer-720p.ogv"
+
 from IPython import embed
 
 from gi.repository import Gdk, Gst, Gtk, GdkX11, GstVideo
 
 import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+def pad_added_cb(element, stuff, sink):
+    element.link(sink)
+
+def bus_cb(bus, message):
+    if message.type == Gst.MessageType.EOS:
+        print("eos")
+        Gtk.main_quit()
+    elif message.type == Gst.MessageType.ERROR:
+        print (message.parse_error())
+        Gtk.main_quit()
+    else:
+        pass
 
 def property_cb(scale, element, property):
   element.set_property(property, scale.get_value())
@@ -53,9 +68,12 @@ if __name__=="__main__":
   Gst.init([])
 
   pipeline = Gst.Pipeline()
-  src = Gst.ElementFactory.make("gltestsrc", None)
+  #src = Gst.ElementFactory.make("gltestsrc", None)
+  #src = Gst.ElementFactory.make("videotestsrc", None)
+  src = Gst.ElementFactory.make("uridecodebin", None)
+  src.set_property("uri", videouri)
+
   transform = Gst.ElementFactory.make("gltransformation", None)
-  #sink = Gst.ElementFactory.make("fpsdisplaysink", None)
   sink = Gst.ElementFactory.make("glimagesink", None)
 
   if not sink or not src:
@@ -64,12 +82,16 @@ if __name__=="__main__":
 
   pipeline.add(src, transform, sink)
   src.link(transform)
+  src.connect("pad-added", pad_added_cb, transform)
   transform.link(sink)
+  
+  bus = pipeline.get_bus()
+  bus.add_signal_watch()
+  bus.connect("message", bus_cb)
 
   window = Gtk.Window()
   window.connect("delete-event", window_closed, pipeline)
   window.connect("key-press-event", key_pressed)
-  #window.set_default_size (1280, 720)
   window.set_title ("OpenGL Transformation")
 
   box = Gtk.Box()
@@ -97,9 +119,8 @@ if __name__=="__main__":
   #box.add(ElementScale(transform, "aspect", 0, 100, 0.5, 0))
   #box.add(ElementScale(transform, "znear", 0, 100, 0.1, 0.1))
   #box.add(ElementScale(transform, "zfar", 0, 1000, 5, 100))
-  
-  window.add(box)
 
+  window.add(box)
   window.show_all()
   window.realize()
   
