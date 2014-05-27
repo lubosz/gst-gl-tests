@@ -1,0 +1,1 @@
+gst-launch-1.0 videotestsrc num-buffers=60 pattern=black ! video/x-raw,height=1080,width=1920,framerate=30/1 ! videomixer name=m ! fpsdisplaysink video-sink=autovideosink  videotestsrc num-buffers=60 pattern=black ! video/x-raw,height=1080,width=1920,framerate=30/1 ! m. videotestsrc num-buffers=60 pattern=black ! video/x-raw,height=1080,width=1920,framerate=30/1 ! m.
