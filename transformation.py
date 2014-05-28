@@ -100,21 +100,21 @@ if __name__=="__main__":
   video = Video(1280, 720)
   box.add(video)
 
-  #box.add(LabelScale("X", -100, 100, 1, 0, red_cb, sink))
-  #box.add(LabelScale("Y", -100, 100, 1, 0, red_cb, sink))
-  #box.add(LabelScale("Scale", 0, 50, 1, 1, red_cb, sink))
-  
   box.add(ElementScale(transform, "xrotation", 0, 360, 1, 0))
-  box.add(ElementScale(transform, "yrotation", 0, 360, 1, 0))
-  box.add(ElementScale(transform, "zrotation", 0, 360, 1, 0))
+  #box.add(ElementScale(transform, "yrotation", 0, 360, 1, 0))
+  #box.add(ElementScale(transform, "zrotation", 0, 360, 1, 0))
 
-  box.add(ElementScale(transform, "xtranslation", -5, 5, 0.1, 0))
-  box.add(ElementScale(transform, "ytranslation", -5, 5, 0.1, 0))
-  #box.add(ElementScale(transform, "ztranslation", -5, 5, 0.1, 0))
+  box.add(ElementScale(transform, "xtranslation", -2, 2, 0.01, 0))
+  box.add(ElementScale(transform, "ytranslation", -2, 2, 0.01, 0))
+  #box.add(ElementScale(transform, "ztranslation", -2, 2, 0.01, 0))
+
+  box.add(ElementScale(transform, "xscale", 0, 4, 0.1, 1))
+  box.add(ElementScale(transform, "yscale", 0, 4, 0.1, 1))
   
-  box.add(ElementScale(transform, "red", 0, 1, 0.005, 0))
-  box.add(ElementScale(transform, "green", 0, 1, 0.005, 0))
-  box.add(ElementScale(transform, "blue", 0, 1, 0.005, 0))
+  #box.add(ElementScale(transform, "red", 0, 1, 0.005, 0))
+  #box.add(ElementScale(transform, "green", 0, 1, 0.005, 0))
+  #box.add(ElementScale(transform, "blue", 0, 1, 0.005, 0))
+  
   #box.add(ElementScale(transform, "fovy", 0, 180, 0.5, 45))
   #box.add(ElementScale(transform, "aspect", 0, 100, 0.5, 0))
   #box.add(ElementScale(transform, "znear", 0, 100, 0.1, 0.1))
