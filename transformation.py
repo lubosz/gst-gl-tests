@@ -70,10 +70,12 @@ if __name__=="__main__":
   pipeline = Gst.Pipeline()
   #src = Gst.ElementFactory.make("gltestsrc", None)
   #src = Gst.ElementFactory.make("videotestsrc", None)
+  
   src = Gst.ElementFactory.make("uridecodebin", None)
   src.set_property("uri", videouri)
 
   transform = Gst.ElementFactory.make("gltransformation", None)
+  #transform = Gst.ElementFactory.make("glmosaic", None)
   sink = Gst.ElementFactory.make("glimagesink", None)
 
   if not sink or not src:
@@ -95,30 +97,30 @@ if __name__=="__main__":
   window.set_title ("OpenGL Transformation")
 
   box = Gtk.Box()
-  box.set_orientation(Gtk.Orientation.VERTICAL)
+  box.set_orientation(Gtk.Orientation.HORIZONTAL)
   
   video = Video(1280, 720)
   box.add(video)
 
-  box.add(ElementScale(transform, "xrotation", 0, 360, 1, 0))
-  #box.add(ElementScale(transform, "yrotation", 0, 360, 1, 0))
-  #box.add(ElementScale(transform, "zrotation", 0, 360, 1, 0))
+  sliderbox = Gtk.Box()
+  sliderbox.set_orientation(Gtk.Orientation.VERTICAL)
 
-  box.add(ElementScale(transform, "xtranslation", -2, 2, 0.01, 0))
-  box.add(ElementScale(transform, "ytranslation", -2, 2, 0.01, 0))
-  #box.add(ElementScale(transform, "ztranslation", -2, 2, 0.01, 0))
+  sliderbox.add(ElementScale(transform, "xrotation", 0, 360, 1, 0))
+  sliderbox.add(ElementScale(transform, "yrotation", 0, 360, 1, 0))
+  sliderbox.add(ElementScale(transform, "zrotation", 0, 360, 1, 0))
 
-  box.add(ElementScale(transform, "xscale", 0, 4, 0.1, 1))
-  box.add(ElementScale(transform, "yscale", 0, 4, 0.1, 1))
+  sliderbox.add(ElementScale(transform, "xtranslation", -2, 2, 0.01, 0))
+  sliderbox.add(ElementScale(transform, "ytranslation", -2, 2, 0.01, 0))
+  sliderbox.add(ElementScale(transform, "ztranslation", -2, 2, 0.01, 0))
+
+  sliderbox.add(ElementScale(transform, "xscale", 0, 4, 0.1, 1))
+  sliderbox.add(ElementScale(transform, "yscale", 0, 4, 0.1, 1))
   
-  #box.add(ElementScale(transform, "red", 0, 1, 0.005, 0))
-  #box.add(ElementScale(transform, "green", 0, 1, 0.005, 0))
-  #box.add(ElementScale(transform, "blue", 0, 1, 0.005, 0))
+  sliderbox.add(ElementScale(transform, "fovy", 0, 180, 0.5, 90))
   
-  #box.add(ElementScale(transform, "fovy", 0, 180, 0.5, 45))
-  #box.add(ElementScale(transform, "aspect", 0, 100, 0.5, 0))
-  #box.add(ElementScale(transform, "znear", 0, 100, 0.1, 0.1))
-  #box.add(ElementScale(transform, "zfar", 0, 1000, 5, 100))
+  sliderbox.set_size_request(300, 300)
+  
+  box.add(sliderbox)
 
   window.add(box)
   window.show_all()
