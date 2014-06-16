@@ -25,6 +25,9 @@ def bus_cb(bus, message):
 def property_cb(scale, element, property):
   element.set_property(property, scale.get_value())
 
+def check_cb(check, element):
+  element.set_property("ortho", check.get_active())
+
 def quit(window):
   window.hide()
   pipeline.set_state(Gst.State.NULL)
@@ -118,8 +121,11 @@ if __name__=="__main__":
   
   sliderbox.add(ElementScale(transform, "fovy", 0, 180, 0.5, 90))
   
+  check = Gtk.CheckButton.new_with_label("Orthographic Projection")
+  check.connect("toggled", check_cb, transform)
+  sliderbox.add(check)
   sliderbox.set_size_request(300, 300)
-  
+
   box.add(sliderbox)
 
   window.add(box)
