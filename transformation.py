@@ -108,16 +108,16 @@ if __name__=="__main__":
   sliderbox = Gtk.Box()
   sliderbox.set_orientation(Gtk.Orientation.VERTICAL)
 
-  sliderbox.add(ElementScale(transform, "xrotation", -720, 720, 1, 0))
-  sliderbox.add(ElementScale(transform, "yrotation", -720, 720, 1, 0))
-  sliderbox.add(ElementScale(transform, "zrotation", -720, 720, 1, 0))
+  sliderbox.add(ElementScale(transform, "rotation-x", -720, 720, 1, 0))
+  sliderbox.add(ElementScale(transform, "rotation-y", -720, 720, 1, 0))
+  sliderbox.add(ElementScale(transform, "rotation-z", -720, 720, 1, 0))
 
-  sliderbox.add(ElementScale(transform, "xtranslation", -5, 5, 0.01, 0))
-  sliderbox.add(ElementScale(transform, "ytranslation", -5, 5, 0.01, 0))
-  sliderbox.add(ElementScale(transform, "ztranslation", -5, 5, 0.01, 0))
+  sliderbox.add(ElementScale(transform, "translation-x", -5, 5, 0.01, 0))
+  sliderbox.add(ElementScale(transform, "translation-y", -5, 5, 0.01, 0))
+  sliderbox.add(ElementScale(transform, "translation-z", -5, 5, 0.01, 0))
 
-  sliderbox.add(ElementScale(transform, "xscale", 0, 4, 0.1, 1))
-  sliderbox.add(ElementScale(transform, "yscale", 0, 4, 0.1, 1))
+  sliderbox.add(ElementScale(transform, "scale-x", 0, 4, 0.1, 1))
+  sliderbox.add(ElementScale(transform, "scale-y", 0, 4, 0.1, 1))
   
   sliderbox.add(ElementScale(transform, "fovy", 0, 180, 0.5, 90))
   
