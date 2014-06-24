@@ -1,19 +1,6 @@
 #!/usr/bin/env python3
 
-videouri = "file:///home/bmonkey/workspace/ges/data/hd/Return to split point.mp4"
-
-from IPython import embed
-
-#from gi.repository import Gdk, Gst, Gtk, GdkX11, GstVideo
-
-
-from gi.repository import Gdk
-from gi.repository import GdkX11
-from gi.repository import ClutterGst
-from gi.repository import Clutter
-from gi.repository import GtkClutter
-from gi.repository import Gst
-from gi.repository import Gtk
+from gi.repository import Gdk, GdkX11, Gst, Gtk, GstVideo
 
 import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -86,66 +73,9 @@ class TransformationBox(Gtk.Box):
     self.add(check)
     self.set_size_request(300, 300)
 
-class ClutterSink(GtkClutter.Embed):
-  def __init__(self, w, h):
-    GtkClutter.init([])
-    Clutter.init([])
-    ClutterGst.init([])
-    
-    GtkClutter.Embed.__init__(self)
-    
-    texture = Clutter.Texture.new()
-    self.sink = Gst.ElementFactory.make("cluttersink", None)
-    self.sink.props.texture = texture
-    
-    self.dragging = False
-    
-    if not self.sink:
-      print ("Clutter Sink not available.")
-      exit()
-
-    self.set_size_request (w, h)
-
-    stage = self.get_stage()
-    stage.add_child(texture)
-
-    self.rect = Clutter.Rectangle.new_with_color(Clutter.Color.new(255, 0, 0, 128))
-    
-    embed()
-    
-    self.rect.set_size(256, 128)
-    self.rect.set_anchor_point(128, 64)
-    self.rect.set_position(256, 256)
-    stage.add_actor(self.rect)
-    
-    stage.connect("button-press-event", self.on_stage_button_press)
-    stage.connect("button-release-event", self.on_stage_button_release)
-    stage.connect("motion-event", self.on_drag_motion)
-
-  def on_drag_motion(self, stage, event):
-    if self.dragging:
-      x, y = self.last_position
-      self.rect.set_position(event.x + x, event.y + y)
-
-  def on_stage_button_release(self, stage, event):
-    self.dragging = False
-
-  def on_stage_button_press(self, stage, event):
-    clicked = stage.get_actor_at_pos(Clutter.PickMode.ALL, event.x, event.y);
-    if clicked == stage:
-      return
-    elif clicked == self.rect:
-      x, y = self.rect.get_position()
-      self.last_position = (x - event.x, y - event.y)
-      self.dragging = True
-
-  def set_handle(self):
-    pass
-
 class GstOverlaySink(Gtk.DrawingArea): 
   def __init__(self, name, w, h):
     Gtk.DrawingArea.__init__(self)
-    from gi.repository import GdkX11, GstVideo
     self.sink = Gst.ElementFactory.make(name, None)
     self.set_size_request (w, h)
     self.set_double_buffered (True)
@@ -162,29 +92,15 @@ if __name__=="__main__":
   Gst.init([])
 
   pipeline = Gst.Pipeline()
-  #src = Gst.ElementFactory.make("gltestsrc", None)
-  #src = Gst.ElementFactory.make("videotestsrc", None)
+  src = Gst.ElementFactory.make("videotestsrc", None)
   
-  src = Gst.ElementFactory.make("uridecodebin", None)
-  src.set_property("uri", videouri)
-
-  sink = ClutterSink(1280, 720)
-  #sink = GstOverlaySink("glimagesink", 1280, 720)
+  sink = GstOverlaySink("glimagesink", 1280, 720)
   
-  transform = False
-  #transform = True
-
-  if transform:
-    transform = Gst.ElementFactory.make("gltransformation", None)
-    #transform = Gst.ElementFactory.make("glmosaic", None)
-    pipeline.add(src, transform, sink.sink)
-    src.link(transform)
-    src.connect("pad-added", pad_added_cb, transform)
-    transform.link(sink.sink)
-  else:
-    pipeline.add(src, sink.sink)
-    src.link(sink.sink)
-    src.connect("pad-added", pad_added_cb, sink.sink)
+  transform = Gst.ElementFactory.make("gltransformation", None)
+  pipeline.add(src, transform, sink.sink)
+  src.link(transform)
+  src.connect("pad-added", pad_added_cb, transform)
+  transform.link(sink.sink)
 
   bus = pipeline.get_bus()
   bus.add_signal_watch()
@@ -200,8 +116,7 @@ if __name__=="__main__":
 
   box.add(sink)
   
-  if transform:
-    box.add(TransformationBox())
+  box.add(TransformationBox())
 
   window.add(box)
   window.show_all()

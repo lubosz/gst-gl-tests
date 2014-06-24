@@ -20,7 +20,7 @@ if __name__=="__main__":
   Gst.init([])
 
   pipeline = Gst.Pipeline()
-  src = Gst.ElementFactory.make("gltestsrc", None)
+  src = Gst.ElementFactory.make("videotestsrc", None)
   sink = Gst.ElementFactory.make("glimagesink", None)
 
   if not sink or not src:
