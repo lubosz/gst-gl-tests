@@ -1,14 +1,25 @@
+from gi.repository import Clutter
+import cairo
+
+from math import pi, sin, cos, ceil
+
+def hex_to_rgb(value):
+    return tuple(float(int(value[i:i + 2], 16)) / 255.0 for i in range(0, 6, 2))
+
 class Point():
     """
     Draw a point, used as a handle for the transformation box
     """
 
-    def __init__(self, x, y, settings):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.color = hex_to_rgb(settings.pointColor)
-        self.clickedColor = hex_to_rgb(settings.clickedPointColor)
-        self.set_width(settings.pointSize)
+        self.color = hex_to_rgb('49a0e0')
+        self.clickedColor = hex_to_rgb('ffa854')
+        #self.set_width(settings.pointSize)
+        #self.color = Clutter.Color.new(255, 0, 0, 196)
+        #self.clicked_color = Clutter.Color.new(0, 255, 0, 196)
+        self.set_width(25)
         self.clicked = False
 
     def set_position(self, x, y):
@@ -75,19 +86,28 @@ class Point():
  BOTTOM) = list(range(10))
 
 
+class Area():
+  def __init__(self, x, y, width, height):
+    self.width = width
+    self.height = height
+    self.x = x
+    self.y = y
+
 class TransformationBox():
     """
     Box for transforming the video on the ViewerWidget
     """
+    
+    last_x = 0
+    last_y = 0
 
-    def __init__(self, settings):
+    def __init__(self):
         self.clicked_point = NO_POINT
         self.left_factor = 0
-        self.settings = settings
         self.right_factor = 1
         self.top_factor = 0
         self.bottom_factor = 1
-        self.center_factor = Point(0.5, 0.5, settings)
+        self.center_factor = Point(0.5, 0.5)
         self.transformation_properties = None
         self.points = {}
 
@@ -147,15 +167,15 @@ class TransformationBox():
 
     def init_points(self):
         #corner boxes
-        self.points[TOP_LEFT] = Point(self.left, self.top, self.settings)
-        self.points[TOP_RIGHT] = Point(self.right, self.top, self.settings)
-        self.points[BOTTOM_LEFT] = Point(self.left, self.bottom, self.settings)
-        self.points[BOTTOM_RIGHT] = Point(self.right, self.bottom, self.settings)
+        self.points[TOP_LEFT] = Point(self.left, self.top)
+        self.points[TOP_RIGHT] = Point(self.right, self.top)
+        self.points[BOTTOM_LEFT] = Point(self.left, self.bottom)
+        self.points[BOTTOM_RIGHT] = Point(self.right, self.bottom)
         #edge boxes
-        self.points[TOP] = Point(self.center.x, self.top, self.settings)
-        self.points[BOTTOM] = Point(self.center.x, self.bottom, self.settings)
-        self.points[LEFT] = Point(self.left, self.center.y, self.settings)
-        self.points[RIGHT] = Point(self.right, self.center.y, self.settings)
+        self.points[TOP] = Point(self.center.x, self.top)
+        self.points[BOTTOM] = Point(self.center.x, self.bottom)
+        self.points[LEFT] = Point(self.left, self.center.y)
+        self.points[RIGHT] = Point(self.right, self.center.y)
 
     def update_points(self):
         self._update_measure()
@@ -181,7 +201,7 @@ class TransformationBox():
             if point_width < 7:
                 point_width = 7
         else:
-            point_width = self.settings.pointSize
+            point_width = 25
 
         for point in list(self.points.values()):
             point.set_width(point_width)
@@ -217,6 +237,9 @@ class TransformationBox():
         self.height = self.bottom - self.top
 
     def transform(self, event):
+    
+        #print("hey")
+    
         # translate when zoomed out
         event.x -= self.area.x
         event.y -= self.area.y
@@ -282,13 +305,13 @@ class TransformationBox():
         self.area = area
         self.update_absolute()
 
-    def init_size(self, area):
-        self.area = area
-        self.left = area.x
-        self.right = area.x + area.width
-        self.top = area.y
-        self.bottom = area.y + area.height
-        self.center = Point((self.left + self.right) / 2, (self.top + self.bottom) / 2, self.settings)
+    def init_size(self, x, y, width, height):
+        self.area= Area(x, y, width, height)
+        self.left = x
+        self.right = x + width
+        self.top = y
+        self.bottom = y + height
+        self.center = Point((self.left + self.right) / 2, (self.top + self.bottom) / 2)
         self.init_points()
         self._update_measure()
 

@@ -14,10 +14,10 @@ from gi.repository import GtkClutter
 from gi.repository import Gst
 from gi.repository import Gtk
 
+  
 import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-from gst_transformation.graphics import *
 from gst_transformation.sinks import *
 from gst_transformation.widgets import *
 
