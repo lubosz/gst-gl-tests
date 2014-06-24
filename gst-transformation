@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+import ctypes
+x11 = ctypes.cdll.LoadLibrary('libX11.so')
+x11.XInitThreads()
+
 videouri = "file:///home/bmonkey/workspace/ges/data/hd/Return to split point.mp4"
 
 from gi.repository import Gdk
