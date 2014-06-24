@@ -11,7 +11,7 @@ class Point():
     Draw a point, used as a handle for the transformation box
     """
 
-    def __init__(self, x, y, width):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
         self.color = hex_to_rgb('49a0e0')
@@ -19,7 +19,7 @@ class Point():
         #self.set_width(settings.pointSize)
         #self.color = Clutter.Color.new(255, 0, 0, 196)
         #self.clicked_color = Clutter.Color.new(0, 255, 0, 196)
-        self.set_width(width)
+        self.set_width(25)
         self.clicked = False
 
     def set_position(self, x, y):
