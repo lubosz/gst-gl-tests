@@ -1,105 +1,108 @@
 #!/usr/bin/env python3
 
 import ctypes
+
 x11 = ctypes.cdll.LoadLibrary('libX11.so')
 x11.XInitThreads()
 
-videouri = "file:///home/bmonkey/workspace/ges/data/hd/Return to split point.mp4"
+video_uri = "file:///home/bmonkey/workspace/ges/data/hd/Return to split point.mp4"
 
 from gi.repository import Gdk
-from gi.repository import GdkX11
-from gi.repository import ClutterGst
-from gi.repository import Clutter
-from gi.repository import GtkClutter
 from gi.repository import Gst
 from gi.repository import Gtk
 
-  
 import signal
+
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 from gst_transformation.sinks import *
 from gst_transformation.widgets import *
 
+
 def pad_added_cb(element, stuff, sink):
     element.link(sink)
+
 
 def bus_cb(bus, message):
     if message.type == Gst.MessageType.EOS:
         print("eos")
         Gtk.main_quit()
     elif message.type == Gst.MessageType.ERROR:
-        print (message.parse_error())
+        print(message.parse_error())
         Gtk.main_quit()
     else:
         pass
 
+
 def quit(window):
-  window.hide()
-  pipeline.set_state(Gst.State.NULL)
-  Gtk.main_quit ()
+    window.hide()
+    pipeline.set_state(Gst.State.NULL)
+    Gtk.main_quit()
 
-def window_closed (widget, event, pipeline):
-  quit(widget)
 
-def key_pressed (widget, key):
-  if key.keyval == Gdk.KEY_Escape:
+def window_closed(widget, event, pipeline):
     quit(widget)
 
-if __name__=="__main__":
-  Gdk.init([])
-  Gtk.init([])
-  Gst.init([])
 
-  pipeline = Gst.Pipeline()
-  #src = Gst.ElementFactory.make("gltestsrc", None)
-  #src = Gst.ElementFactory.make("videotestsrc", None)
-  
-  src = Gst.ElementFactory.make("uridecodebin", None)
-  src.set_property("uri", videouri)
+def key_pressed(widget, key):
+    if key.keyval == Gdk.KEY_Escape:
+        quit(widget)
 
-  sink = ClutterSink(1280, 720)
-  #sink = GstOverlaySink("glimagesink", 1280, 720)
-  
-  transform = False
-  #transform = True
 
-  if transform:
-    transform = Gst.ElementFactory.make("gltransformation", None)
-    #transform = Gst.ElementFactory.make("glmosaic", None)
-    pipeline.add(src, transform, sink.sink)
-    src.link(transform)
-    src.connect("pad-added", pad_added_cb, transform)
-    transform.link(sink.sink)
-    sink.set_transformation_element(transform)
-  else:
-    pipeline.add(src, sink.sink)
-    src.link(sink.sink)
-    src.connect("pad-added", pad_added_cb, sink.sink)
+if __name__ == "__main__":
+    Gdk.init([])
+    Gtk.init([])
+    Gst.init([])
 
-  bus = pipeline.get_bus()
-  bus.add_signal_watch()
-  bus.connect("message", bus_cb)
+    pipeline = Gst.Pipeline()
+    # src = Gst.ElementFactory.make("gltestsrc", None)
+    #src = Gst.ElementFactory.make("videotestsrc", None)
 
-  window = Gtk.Window()
-  window.connect("delete-event", window_closed, pipeline)
-  window.connect("key-press-event", key_pressed)
-  window.set_title ("OpenGL Transformation")
+    src = Gst.ElementFactory.make("uridecodebin", None)
+    src.set_property("uri", video_uri)
 
-  box = Gtk.Box()
-  box.set_orientation(Gtk.Orientation.HORIZONTAL)
-  box.add(sink)
-  
-  if transform:
-    box.add(ElementScaleBox(transform))
+    sink = ClutterSink(1280, 720)
+    #sink = GstOverlaySink("glimagesink", 1280, 720)
 
-  window.add(box)
-  window.show_all()
-  window.realize()
-  
-  sink.set_handle()
-  
-  if pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
-    pipeline.set_state(Gst.State.NULL)
-  else:
-    Gtk.main()
+    transform = False
+    #transform = True
+
+    if transform:
+        transform = Gst.ElementFactory.make("gltransformation", None)
+        #transform = Gst.ElementFactory.make("glmosaic", None)
+        pipeline.add(src, transform, sink.sink)
+        src.link(transform)
+        src.connect("pad-added", pad_added_cb, transform)
+        transform.link(sink.sink)
+        sink.set_transformation_element(transform)
+    else:
+        pipeline.add(src, sink.sink)
+        src.link(sink.sink)
+        src.connect("pad-added", pad_added_cb, sink.sink)
+
+    bus = pipeline.get_bus()
+    bus.add_signal_watch()
+    bus.connect("message", bus_cb)
+
+    window = Gtk.Window()
+    window.connect("delete-event", window_closed, pipeline)
+    window.connect("key-press-event", key_pressed)
+    window.set_title("OpenGL Transformation")
+
+    box = Gtk.Box()
+    box.set_orientation(Gtk.Orientation.HORIZONTAL)
+    box.add(sink)
+
+    if transform:
+        box.add(ElementScaleBox(transform))
+
+    window.add(box)
+    window.show_all()
+    window.realize()
+
+    sink.set_handle()
+
+    if pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
+        pipeline.set_state(Gst.State.NULL)
+    else:
+        Gtk.main()

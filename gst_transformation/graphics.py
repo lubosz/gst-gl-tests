@@ -1,13 +1,15 @@
 from gi.repository import Clutter
 import cairo
 
-from math import pi, sin, cos, ceil
+from math import pi
 
 MINIMAL_POINT_SIZE = 7
 DEFAULT_POINT_SIZE = 25
 
+
 def hex_to_rgb(value):
     return tuple(float(int(value[i:i + 2], 16)) / 255.0 for i in range(0, 6, 2))
+
 
 class Point():
     """
@@ -20,8 +22,6 @@ class Point():
         self.color = hex_to_rgb('49a0e0')
         self.clickedColor = hex_to_rgb('ffa854')
         #self.set_width(settings.pointSize)
-        #self.color = Clutter.Color.new(255, 0, 0, 196)
-        #self.clicked_color = Clutter.Color.new(0, 255, 0, 196)
         self.set_width(DEFAULT_POINT_SIZE)
         self.clicked = False
 
@@ -45,25 +45,25 @@ class Point():
 
     def draw(self, cr):
         linear = cairo.LinearGradient(self.x, self.y - self.radius,
-                                    self.x, self.y + self.radius)
+                                      self.x, self.y + self.radius)
         linear.add_color_stop_rgba(0.00, .6, .6, .6, 1)
         linear.add_color_stop_rgba(0.50, .4, .4, .4, .1)
         linear.add_color_stop_rgba(0.60, .4, .4, .4, .1)
         linear.add_color_stop_rgba(1.00, .6, .6, .6, 1)
 
         radial = cairo.RadialGradient(self.x + self.radius / 2,
-                                    self.y - self.radius / 2, 1,
-                                    self.x, self.y,
-                                    self.radius)
+                                      self.y - self.radius / 2, 1,
+                                      self.x, self.y,
+                                      self.radius)
         if self.clicked:
             radial.add_color_stop_rgb(0, *self.clickedColor)
         else:
             radial.add_color_stop_rgb(0, *self.color)
         radial.add_color_stop_rgb(1, 0.1, 0.1, 0.1)
         radial_glow = cairo.RadialGradient(self.x, self.y,
-                                        self.radius * .9,
-                                        self.x, self.y,
-                                        self.radius * 1.2)
+                                           self.radius * .9,
+                                           self.x, self.y,
+                                           self.radius * 1.2)
         radial_glow.add_color_stop_rgba(0, 0.9, 0.9, 0.9, 1)
         radial_glow.add_color_stop_rgba(1, 0.9, 0.9, 0.9, 0)
 
@@ -90,11 +90,12 @@ class Point():
 
 
 class Area():
-  def __init__(self, x, y, width, height):
-    self.width = width
-    self.height = height
-    self.x = x
-    self.y = y
+    def __init__(self, x, y, width, height):
+        self.width = width
+        self.height = height
+        self.x = x
+        self.y = y
+
 
 class Rectangle():
     def __init__(self, x, y, w, h):
@@ -114,7 +115,8 @@ class Rectangle():
         self.right = x + w
         self.top = y
         self.bottom = y + h
-        self.center = Point((self.left + self.right) / 2, (self.top + self.bottom) / 2)
+        self.center = Point((self.left + self.right) / 2,
+                            (self.top + self.bottom) / 2)
 
         self.update_width()
 
@@ -179,18 +181,19 @@ class Rectangle():
         self.update_scale()
 
     def draw(self, cr):
-        cr.save ()
+        cr.save()
         # clear the contents of the canvas, to avoid painting
         # over the previous frame
-        cr.set_operator (cairo.OPERATOR_CLEAR)
-        cr.paint ()
-        cr.restore ()
-        cr.set_operator (cairo.OPERATOR_OVER)
+        cr.set_operator(cairo.OPERATOR_CLEAR)
+        cr.paint()
+        cr.restore()
+        cr.set_operator(cairo.OPERATOR_OVER)
       
         # main box
         cr.set_source_rgba(0.5, 0.5, 0.5, 0.7)
         cr.rectangle(self.left, self.top, self.right - self.left, self.bottom - self.top)
         cr.stroke()
+
 
 class TransformationBox(Clutter.Actor):
     """
@@ -210,28 +213,27 @@ class TransformationBox(Clutter.Actor):
         
         self.rectangle = Rectangle(x, y, w, h)
         self.init_points()
-
         
-        canvas.connect ("draw", self.draw)
+        canvas.connect("draw", self.draw)
 
     def point_setup(self):
         return {
-          #corner points
-          TOP_LEFT : (self.rectangle.left, self.rectangle.top),
-          TOP_RIGHT : (self.rectangle.right, self.rectangle.top),
-          BOTTOM_LEFT : (self.rectangle.left, self.rectangle.bottom),
-          BOTTOM_RIGHT : (self.rectangle.right, self.rectangle.bottom),
-          #edge points
-          TOP : (self.rectangle.center.x, self.rectangle.top),
-          BOTTOM : (self.rectangle.center.x, self.rectangle.bottom),
-          LEFT : (self.rectangle.left, self.rectangle.center.y),
-          RIGHT : (self.rectangle.right, self.rectangle.center.y)
+            # corner points
+            TOP_LEFT: (self.rectangle.left, self.rectangle.top),
+            TOP_RIGHT: (self.rectangle.right, self.rectangle.top),
+            BOTTOM_LEFT: (self.rectangle.left, self.rectangle.bottom),
+            BOTTOM_RIGHT: (self.rectangle.right, self.rectangle.bottom),
+            #edge points
+            TOP: (self.rectangle.center.x, self.rectangle.top),
+            BOTTOM: (self.rectangle.center.x, self.rectangle.bottom),
+            LEFT: (self.rectangle.left, self.rectangle.center.y),
+            RIGHT: (self.rectangle.right, self.rectangle.center.y)
         }
 
     def init_points(self):
         for enum, location in self.point_setup().items():
-          self.points[enum] = Point(*location)
-          #print(enum, location)
+            self.points[enum] = Point(*location)
+            #print(enum, location)
 
     def check_shrink_points(self):
         # shrink points for smaller areas
@@ -254,18 +256,18 @@ class TransformationBox(Clutter.Actor):
         self.rectangle.update_width()
          
         for enum, location in self.point_setup().items():
-          self.points[enum].set_position(*location)
-          #print("Update", enum, location)
+            self.points[enum].set_position(*location)
+            #print("Update", enum, location)
 
         self.check_shrink_points()
 
-    def draw (self, canvas, cr, width, height):
-      self.update_points()
-      self.rectangle.draw(cr)
+    def draw(self, canvas, cr, width, height):
+        self.update_points()
+        self.rectangle.draw(cr)
 
-      for point in list(self.points.values()):
-          point.draw(cr)
-      return True
+        for point in list(self.points.values()):
+            point.draw(cr)
+        return True
 
     def button_press(self, event):
         # translate when zoomed out
