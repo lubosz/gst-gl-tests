@@ -96,36 +96,27 @@ class Area():
     self.x = x
     self.y = y
 
-class TransformationBox(Clutter.Actor):
-    """
-    Box for transforming the video on the ViewerWidget
-    """
-    
-    click_x = 0
-    click_y = 0
-
-    def __init__(self, canvas, x, y, w, h):
-        Clutter.Actor.__init__(self)
-        self.set_content (canvas)
-        self.clicked_actor = NO_ACTOR
+class Rectangle():
+    def __init__(self, x, y, w, h):
+        self.width = w
+        self.height = h
+        self.x = x
+        self.y = y
+        
         self.left_factor = 0
         self.right_factor = 1
         self.top_factor = 0
         self.bottom_factor = 1
-        self.center_factor = Point(0.5, 0.5)
-        self.transformation_properties = None
-        self.points = {}
-        
+        self.center_factor = Point(0.5, 0.5)    
+
         self.area = Area(x, y, w, h)
         self.left = x
         self.right = x + w
         self.top = y
         self.bottom = y + h
         self.center = Point((self.left + self.right) / 2, (self.top + self.bottom) / 2)
-        self.init_points()
+
         self.update_width()
-        
-        canvas.connect ("draw", self.draw)
 
     def is_clicked(self, event):
         is_right_of_left = event.x > self.left
@@ -136,47 +127,8 @@ class TransformationBox(Clutter.Actor):
         if is_right_of_left and is_left_of_right and is_below_top and is_above_bottom:
             return True
 
-    def point_setup(self):
-        return {
-          #corner points
-          TOP_LEFT : (self.left, self.top),
-          TOP_RIGHT : (self.right, self.top),
-          BOTTOM_LEFT : (self.left, self.bottom),
-          BOTTOM_RIGHT : (self.right, self.bottom),
-          #edge points
-          TOP : (self.center.x, self.top),
-          BOTTOM : (self.center.x, self.bottom),
-          LEFT : (self.left, self.center.y),
-          RIGHT : (self.right, self.center.y)
-        }
-
-    def init_points(self):
-        for enum, location in self.point_setup().items():
-          self.points[enum] = Point(*location)
-          #print(enum, location)
-  
-    def update_points(self):
-        self.update_width()
-         
-        for enum, location in self.point_setup().items():
-          self.points[enum].set_position(*location)
-          print("Update", enum, location)
-
-        # shrink points for smaller areas
-        if self.width < 100 or self.height < 100:
-            if self.width < self.height:
-                point_width = self.width / 4.0
-            else:
-                point_width = self.height / 4.0
-
-            # minimal point size
-            if point_width < MINIMAL_POINT_SIZE:
-                point_width = MINIMAL_POINT_SIZE
-        else:
-            point_width = DEFAULT_POINT_SIZE
-
-        for point in self.points.values():
-            point.set_width(point_width)
+    def aspect_ratio(self):
+        return float(self.area.width) / float(self.area.height)
 
     def update_scale(self):
         self.scale_x = (self.right_factor - self.left_factor) / 2.0
@@ -212,21 +164,104 @@ class TransformationBox(Clutter.Actor):
         self.right = self.right_factor * self.area.width
         self.update_center()
 
+    def translate(self, rel_x, rel_y):
+        self.center.x -= rel_x
+        self.center.y -= rel_y
+
+        self.left -= rel_x
+        self.right -= rel_x
+        self.top -= rel_y
+        self.bottom -= rel_y
+
+    def update2(self):
+        self.update_factors()
+        self.update_center()
+        self.update_scale()
+
+    def draw(self, cr):
+        cr.save ()
+        # clear the contents of the canvas, to avoid painting
+        # over the previous frame
+        cr.set_operator (cairo.OPERATOR_CLEAR)
+        cr.paint ()
+        cr.restore ()
+        cr.set_operator (cairo.OPERATOR_OVER)
+      
+        # main box
+        cr.set_source_rgba(0.5, 0.5, 0.5, 0.7)
+        cr.rectangle(self.left, self.top, self.right - self.left, self.bottom - self.top)
+        cr.stroke()
+
+class TransformationBox(Clutter.Actor):
+    """
+    Box for transforming the video on the ViewerWidget
+    """
+    
+    click_x = 0
+    click_y = 0
+
+    def __init__(self, canvas, x, y, w, h):
+        Clutter.Actor.__init__(self)
+        self.set_content (canvas)
+        self.clicked_actor = NO_ACTOR
+        
+        self.transformation_properties = None
+        self.points = {}
+        
+        self.rectangle = Rectangle(x, y, w, h)
+        self.init_points()
+
+        
+        canvas.connect ("draw", self.draw)
+
+    def point_setup(self):
+        return {
+          #corner points
+          TOP_LEFT : (self.rectangle.left, self.rectangle.top),
+          TOP_RIGHT : (self.rectangle.right, self.rectangle.top),
+          BOTTOM_LEFT : (self.rectangle.left, self.rectangle.bottom),
+          BOTTOM_RIGHT : (self.rectangle.right, self.rectangle.bottom),
+          #edge points
+          TOP : (self.rectangle.center.x, self.rectangle.top),
+          BOTTOM : (self.rectangle.center.x, self.rectangle.bottom),
+          LEFT : (self.rectangle.left, self.rectangle.center.y),
+          RIGHT : (self.rectangle.right, self.rectangle.center.y)
+        }
+
+    def init_points(self):
+        for enum, location in self.point_setup().items():
+          self.points[enum] = Point(*location)
+          #print(enum, location)
+
+    def check_shrink_points(self):
+        # shrink points for smaller areas
+        if self.rectangle.width < 100 or self.rectangle.height < 100:
+            if self.rectangle.width < self.rectangle.height:
+                point_width = self.rectangle.width / 4.0
+            else:
+                point_width = self.rectangle.height / 4.0
+
+            # minimal point size
+            if point_width < MINIMAL_POINT_SIZE:
+                point_width = MINIMAL_POINT_SIZE
+        else:
+            point_width = DEFAULT_POINT_SIZE
+
+        for point in self.points.values():
+            point.set_width(point_width)
+  
+    def update_points(self):
+        self.rectangle.update_width()
+         
+        for enum, location in self.point_setup().items():
+          self.points[enum].set_position(*location)
+          #print("Update", enum, location)
+
+        self.check_shrink_points()
+
     def draw (self, canvas, cr, width, height):
       self.update_points()
-    
-      cr.save ()
-      # clear the contents of the canvas, to avoid painting
-      # over the previous frame
-      cr.set_operator (cairo.OPERATOR_CLEAR)
-      cr.paint ()
-      cr.restore ()
-      cr.set_operator (cairo.OPERATOR_OVER)
-    
-      # main box
-      cr.set_source_rgba(0.5, 0.5, 0.5, 0.7)
-      cr.rectangle(self.left, self.top, self.right - self.left, self.bottom - self.top)
-      cr.stroke()
+      self.rectangle.draw(cr)
 
       for point in list(self.points.values()):
           point.draw(cr)
@@ -241,7 +276,7 @@ class TransformationBox(Clutter.Actor):
                 self.clicked_actor = type
                 return
 
-        if self.is_clicked(event):
+        if self.rectangle.is_clicked(event):
             self.clicked_actor = RECTANGLE
             self.click_x = event.x
             self.click_y = event.y
@@ -249,67 +284,61 @@ class TransformationBox(Clutter.Actor):
             self.clicked_actor = NO_ACTOR
 
     def check_negative_scale(self):
-        if self.right < self.left:
+        if self.rectangle.right < self.rectangle.left:
             if self.clicked_actor in [RIGHT, BOTTOM_RIGHT, TOP_RIGHT]:
-                self.right = self.left
+                self.rectangle.right = self.left
             else:
-                self.left = self.right
-        if self.bottom < self.top:
+                self.rectangle.left = self.rectangle.right
+        if self.rectangle.bottom < self.rectangle.top:
             if self.clicked_actor == [BOTTOM, BOTTOM_RIGHT, BOTTOM_LEFT]:
-                self.bottom = self.top
+                self.rectangle.bottom = self.rectangle.top
             else:
-                self.top = self.bottom
-
-    def translate(self, event):
-        rel_x = self.click_x - event.x
-        rel_y = self.click_y - event.y
-
-        self.center.x -= rel_x
-        self.center.y -= rel_y
-
-        self.left -= rel_x
-        self.right -= rel_x
-        self.top -= rel_y
-        self.bottom -= rel_y
-
-        self.click_x = event.x
-        self.click_y = event.y
+                self.rectangle.top = self.rectangle.bottom
 
     def motion(self, event):
         # translate when zoomed out
         #event.x -= self.area.x
         #event.y -= self.area.y
-        aspect = float(self.area.width) / float(self.area.height)
-        self.update_width()
+        aspect = self.rectangle.aspect_ratio()
+        self.rectangle.update_width()
 
         if self.clicked_actor == NO_ACTOR:
             return False
         elif self.clicked_actor == RECTANGLE:
-            self.translate(event)
+        
+            rel_x = self.click_x - event.x
+            rel_y = self.click_y - event.y
+        
+            self.rectangle.translate(rel_x, rel_y)
+            
+            self.click_x = event.x
+            self.click_y = event.y
+            
         elif self.clicked_actor == TOP_LEFT:
-            self.left = event.x
-            self.top = self.bottom - self.width / aspect
+            self.rectangle.left = event.x
+            self.rectangle.top = self.rectangle.bottom - self.rectangle.width / aspect
         elif self.clicked_actor == BOTTOM_LEFT:
-            self.left = event.x
-            self.bottom = self.top + self.width / aspect
+            self.rectangle.left = event.x
+            self.rectangle.bottom = self.rectangle.top + self.rectangle.width / aspect
         elif self.clicked_actor == TOP_RIGHT:
-            self.right = event.x
-            self.top = self.bottom - self.width / aspect
+            self.rectangle.right = event.x
+            self.rectangle.top = self.rectangle.bottom - self.rectangle.width / aspect
         elif self.clicked_actor == BOTTOM_RIGHT:
-            self.right = event.x
-            self.bottom = self.top + self.width / aspect
+            self.rectangle.right = event.x
+            self.rectangle.bottom = self.rectangle.top + self.rectangle.width / aspect
         elif self.clicked_actor == LEFT:
-            self.left = event.x
+            self.rectangle.left = event.x
         elif self.clicked_actor == RIGHT:
-            self.right = event.x
+            self.rectangle.right = event.x
         elif self.clicked_actor == TOP:
-            self.top = event.y
+            self.rectangle.top = event.y
         elif self.clicked_actor == BOTTOM:
-            self.bottom = event.y
+            self.rectangle.bottom = event.y
+
         self.check_negative_scale()
-        self.update_factors()
-        self.update_center()
-        self.update_scale()
+
+        self.rectangle.update2()
+
         return True
 
     def button_release(self):
