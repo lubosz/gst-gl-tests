@@ -3,6 +3,9 @@ import cairo
 
 from math import pi, sin, cos, ceil
 
+MINIMAL_POINT_SIZE = 7
+DEFAULT_POINT_SIZE = 25
+
 def hex_to_rgb(value):
     return tuple(float(int(value[i:i + 2], 16)) / 255.0 for i in range(0, 6, 2))
 
@@ -19,7 +22,7 @@ class Point():
         #self.set_width(settings.pointSize)
         #self.color = Clutter.Color.new(255, 0, 0, 196)
         #self.clicked_color = Clutter.Color.new(0, 255, 0, 196)
-        self.set_width(25)
+        self.set_width(DEFAULT_POINT_SIZE)
         self.clicked = False
 
     def set_position(self, x, y):
@@ -74,8 +77,8 @@ class Point():
         cr.set_source(linear)
         cr.fill()
 
-(NO_POINT,
- AREA,
+(NO_ACTOR,
+ RECTANGLE,
  TOP_LEFT,
  BOTTOM_LEFT,
  TOP_RIGHT,
@@ -93,16 +96,18 @@ class Area():
     self.x = x
     self.y = y
 
-class TransformationBox():
+class TransformationBox(Clutter.Actor):
     """
     Box for transforming the video on the ViewerWidget
     """
     
-    last_x = 0
-    last_y = 0
+    click_x = 0
+    click_y = 0
 
-    def __init__(self):
-        self.clicked_point = NO_POINT
+    def __init__(self, canvas, x, y, w, h):
+        Clutter.Actor.__init__(self)
+        self.set_content (canvas)
+        self.clicked_actor = NO_ACTOR
         self.left_factor = 0
         self.right_factor = 1
         self.top_factor = 0
@@ -110,6 +115,17 @@ class TransformationBox():
         self.center_factor = Point(0.5, 0.5)
         self.transformation_properties = None
         self.points = {}
+        
+        self.area = Area(x, y, w, h)
+        self.left = x
+        self.right = x + w
+        self.top = y
+        self.bottom = y + h
+        self.center = Point((self.left + self.right) / 2, (self.top + self.bottom) / 2)
+        self.init_points()
+        self.update_width()
+        
+        canvas.connect ("draw", self.draw)
 
     def is_clicked(self, event):
         is_right_of_left = event.x > self.left
@@ -119,6 +135,48 @@ class TransformationBox():
 
         if is_right_of_left and is_left_of_right and is_below_top and is_above_bottom:
             return True
+
+    def point_setup(self):
+        return {
+          #corner points
+          TOP_LEFT : (self.left, self.top),
+          TOP_RIGHT : (self.right, self.top),
+          BOTTOM_LEFT : (self.left, self.bottom),
+          BOTTOM_RIGHT : (self.right, self.bottom),
+          #edge points
+          TOP : (self.center.x, self.top),
+          BOTTOM : (self.center.x, self.bottom),
+          LEFT : (self.left, self.center.y),
+          RIGHT : (self.right, self.center.y)
+        }
+
+    def init_points(self):
+        for enum, location in self.point_setup().items():
+          self.points[enum] = Point(*location)
+          #print(enum, location)
+  
+    def update_points(self):
+        self.update_width()
+         
+        for enum, location in self.point_setup().items():
+          self.points[enum].set_position(*location)
+          print("Update", enum, location)
+
+        # shrink points for smaller areas
+        if self.width < 100 or self.height < 100:
+            if self.width < self.height:
+                point_width = self.width / 4.0
+            else:
+                point_width = self.height / 4.0
+
+            # minimal point size
+            if point_width < MINIMAL_POINT_SIZE:
+                point_width = MINIMAL_POINT_SIZE
+        else:
+            point_width = DEFAULT_POINT_SIZE
+
+        for point in self.points.values():
+            point.set_width(point_width)
 
     def update_scale(self):
         self.scale_x = (self.right_factor - self.left_factor) / 2.0
@@ -131,6 +189,135 @@ class TransformationBox():
         self.center.x = self.area.width * self.center_factor.x
         self.center.y = self.area.height * self.center_factor.y
 
+    def update_width(self):
+        self.width = self.right - self.left
+        self.height = self.bottom - self.top
+
+    def update_factors(self):
+        self.bottom_factor = float(self.bottom) / float(self.area.height)
+        self.top_factor = float(self.top) / float(self.area.height)
+        self.left_factor = float(self.left) / float(self.area.width)
+        self.right_factor = float(self.right) / float(self.area.width)
+
+    def update_size(self, area):
+        if area.width == 0 or area.height == 0:
+            return
+        self.area = area
+        self.update_absolute()
+
+    def update_absolute(self):
+        self.top = self.top_factor * self.area.height
+        self.left = self.left_factor * self.area.width
+        self.bottom = self.bottom_factor * self.area.height
+        self.right = self.right_factor * self.area.width
+        self.update_center()
+
+    def draw (self, canvas, cr, width, height):
+      self.update_points()
+    
+      cr.save ()
+      # clear the contents of the canvas, to avoid painting
+      # over the previous frame
+      cr.set_operator (cairo.OPERATOR_CLEAR)
+      cr.paint ()
+      cr.restore ()
+      cr.set_operator (cairo.OPERATOR_OVER)
+    
+      # main box
+      cr.set_source_rgba(0.5, 0.5, 0.5, 0.7)
+      cr.rectangle(self.left, self.top, self.right - self.left, self.bottom - self.top)
+      cr.stroke()
+
+      for point in list(self.points.values()):
+          point.draw(cr)
+      return True
+
+    def button_press(self, event):
+        # translate when zoomed out
+        #event.x -= self.area.x
+        #event.y -= self.area.y
+        for type, point in list(self.points.items()):
+            if point.is_clicked(event):
+                self.clicked_actor = type
+                return
+
+        if self.is_clicked(event):
+            self.clicked_actor = RECTANGLE
+            self.click_x = event.x
+            self.click_y = event.y
+        else:
+            self.clicked_actor = NO_ACTOR
+
+    def check_negative_scale(self):
+        if self.right < self.left:
+            if self.clicked_actor in [RIGHT, BOTTOM_RIGHT, TOP_RIGHT]:
+                self.right = self.left
+            else:
+                self.left = self.right
+        if self.bottom < self.top:
+            if self.clicked_actor == [BOTTOM, BOTTOM_RIGHT, BOTTOM_LEFT]:
+                self.bottom = self.top
+            else:
+                self.top = self.bottom
+
+    def translate(self, event):
+        rel_x = self.click_x - event.x
+        rel_y = self.click_y - event.y
+
+        self.center.x -= rel_x
+        self.center.y -= rel_y
+
+        self.left -= rel_x
+        self.right -= rel_x
+        self.top -= rel_y
+        self.bottom -= rel_y
+
+        self.click_x = event.x
+        self.click_y = event.y
+
+    def motion(self, event):
+        # translate when zoomed out
+        #event.x -= self.area.x
+        #event.y -= self.area.y
+        aspect = float(self.area.width) / float(self.area.height)
+        self.update_width()
+
+        if self.clicked_actor == NO_ACTOR:
+            return False
+        elif self.clicked_actor == RECTANGLE:
+            self.translate(event)
+        elif self.clicked_actor == TOP_LEFT:
+            self.left = event.x
+            self.top = self.bottom - self.width / aspect
+        elif self.clicked_actor == BOTTOM_LEFT:
+            self.left = event.x
+            self.bottom = self.top + self.width / aspect
+        elif self.clicked_actor == TOP_RIGHT:
+            self.right = event.x
+            self.top = self.bottom - self.width / aspect
+        elif self.clicked_actor == BOTTOM_RIGHT:
+            self.right = event.x
+            self.bottom = self.top + self.width / aspect
+        elif self.clicked_actor == LEFT:
+            self.left = event.x
+        elif self.clicked_actor == RIGHT:
+            self.right = event.x
+        elif self.clicked_actor == TOP:
+            self.top = event.y
+        elif self.clicked_actor == BOTTOM:
+            self.bottom = event.y
+        self.check_negative_scale()
+        self.update_factors()
+        self.update_center()
+        self.update_scale()
+        return True
+
+    def button_release(self):
+        for point in list(self.points.values()):
+            point.clicked = False
+        self.clicked_actor = NO_ACTOR
+
+    """
     def set_transformation_properties(self, transformation_properties):
         self.transformation_properties = transformation_properties
         self.update_from_effect(transformation_properties.effect)
@@ -150,178 +337,6 @@ class TransformationBox():
         self.update_scale()
         self.update_points()
 
-    def move(self, event):
-        rel_x = self.last_x - event.x
-        rel_y = self.last_y - event.y
-
-        self.center.x -= rel_x
-        self.center.y -= rel_y
-
-        self.left -= rel_x
-        self.right -= rel_x
-        self.top -= rel_y
-        self.bottom -= rel_y
-
-        self.last_x = event.x
-        self.last_y = event.y
-
-    def init_points(self):
-        #corner boxes
-        self.points[TOP_LEFT] = Point(self.left, self.top)
-        self.points[TOP_RIGHT] = Point(self.right, self.top)
-        self.points[BOTTOM_LEFT] = Point(self.left, self.bottom)
-        self.points[BOTTOM_RIGHT] = Point(self.right, self.bottom)
-        #edge boxes
-        self.points[TOP] = Point(self.center.x, self.top)
-        self.points[BOTTOM] = Point(self.center.x, self.bottom)
-        self.points[LEFT] = Point(self.left, self.center.y)
-        self.points[RIGHT] = Point(self.right, self.center.y)
-
-    def update_points(self):
-        self._update_measure()
-
-        #corner boxes
-        self.points[TOP_LEFT].set_position(self.left, self.top)
-        self.points[TOP_RIGHT].set_position(self.right, self.top)
-        self.points[BOTTOM_LEFT].set_position(self.left, self.bottom)
-        self.points[BOTTOM_RIGHT].set_position(self.right, self.bottom)
-        #edge boxes
-        self.points[TOP].set_position(self.center.x, self.top)
-        self.points[BOTTOM].set_position(self.center.x, self.bottom)
-        self.points[LEFT].set_position(self.left, self.center.y)
-        self.points[RIGHT].set_position(self.right, self.center.y)
-
-        if self.width < 100 or self.height < 100:
-            if self.width < self.height:
-                point_width = self.width / 4.0
-            else:
-                point_width = self.height / 4.0
-
-            # gradient is not rendered below width 7
-            if point_width < 7:
-                point_width = 7
-        else:
-            point_width = 25
-
-        for point in list(self.points.values()):
-            point.set_width(point_width)
-
-    def draw(self, cr):
-        self.update_points()
-        # main box
-        cr.set_source_rgba(0.5, 0.5, 0.5, 0.7)
-        cr.rectangle(self.left, self.top, self.right - self.left, self.bottom - self.top)
-        cr.stroke()
-
-        for point in list(self.points.values()):
-            point.draw(cr)
-
-    def select_point(self, event):
-        # translate when zoomed out
-        event.x -= self.area.x
-        event.y -= self.area.y
-        for type, point in list(self.points.items()):
-            if point.is_clicked(event):
-                self.clicked_point = type
-                return
-
-        if self.is_clicked(event):
-            self.clicked_point = AREA
-            self.last_x = event.x
-            self.last_y = event.y
-        else:
-            self.clicked_point = NO_POINT
-
-    def _update_measure(self):
-        self.width = self.right - self.left
-        self.height = self.bottom - self.top
-
-    def transform(self, event):
-    
-        #print("hey")
-    
-        # translate when zoomed out
-        event.x -= self.area.x
-        event.y -= self.area.y
-        aspect = float(self.area.width) / float(self.area.height)
-        self._update_measure()
-
-        if self.clicked_point == NO_POINT:
-            return False
-        elif self.clicked_point == AREA:
-            self.move(event)
-        elif self.clicked_point == TOP_LEFT:
-            self.left = event.x
-            self.top = self.bottom - self.width / aspect
-        elif self.clicked_point == BOTTOM_LEFT:
-            self.left = event.x
-            self.bottom = self.top + self.width / aspect
-        elif self.clicked_point == TOP_RIGHT:
-            self.right = event.x
-            self.top = self.bottom - self.width / aspect
-        elif self.clicked_point == BOTTOM_RIGHT:
-            self.right = event.x
-            self.bottom = self.top + self.width / aspect
-        elif self.clicked_point == LEFT:
-            self.left = event.x
-        elif self.clicked_point == RIGHT:
-            self.right = event.x
-        elif self.clicked_point == TOP:
-            self.top = event.y
-        elif self.clicked_point == BOTTOM:
-            self.bottom = event.y
-        self._check_negative_scale()
-        self.update_factors()
-        self.update_center()
-        self.update_scale()
-        return True
-
-    def release_point(self):
-        for point in list(self.points.values()):
-            point.clicked = False
-        self.clicked_point = NO_POINT
-
-    def _check_negative_scale(self):
-        if self.right < self.left:
-            if self.clicked_point in [RIGHT, BOTTOM_RIGHT, TOP_RIGHT]:
-                self.right = self.left
-            else:
-                self.left = self.right
-        if self.bottom < self.top:
-            if self.clicked_point == [BOTTOM, BOTTOM_RIGHT, BOTTOM_LEFT]:
-                self.bottom = self.top
-            else:
-                self.top = self.bottom
-
-    def update_factors(self):
-        self.bottom_factor = float(self.bottom) / float(self.area.height)
-        self.top_factor = float(self.top) / float(self.area.height)
-        self.left_factor = float(self.left) / float(self.area.width)
-        self.right_factor = float(self.right) / float(self.area.width)
-
-    def update_size(self, area):
-        if area.width == 0 or area.height == 0:
-            return
-        self.area = area
-        self.update_absolute()
-
-    def init_size(self, x, y, width, height):
-        self.area= Area(x, y, width, height)
-        self.left = x
-        self.right = x + width
-        self.top = y
-        self.bottom = y + height
-        self.center = Point((self.left + self.right) / 2, (self.top + self.bottom) / 2)
-        self.init_points()
-        self._update_measure()
-
-    def update_absolute(self):
-        self.top = self.top_factor * self.area.height
-        self.left = self.left_factor * self.area.width
-        self.bottom = self.bottom_factor * self.area.height
-        self.right = self.right_factor * self.area.width
-        self.update_center()
-
     def update_effect_properties(self):
         if self.transformation_properties:
             self.transformation_properties.disconnectSpinButtonsFromFlush()
@@ -332,3 +347,4 @@ class TransformationBox():
             values["scale_x"].set_value(self.scale_x)
             values["scale_y"].set_value(self.scale_y)
             self.transformation_properties.connectSpinButtonsToFlush()
+    """

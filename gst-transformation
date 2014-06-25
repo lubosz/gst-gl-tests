@@ -62,7 +62,7 @@ if __name__=="__main__":
   #sink = GstOverlaySink("glimagesink", 1280, 720)
   
   transform = False
-  transform = True
+  #transform = True
 
   if transform:
     transform = Gst.ElementFactory.make("gltransformation", None)
@@ -71,6 +71,7 @@ if __name__=="__main__":
     src.link(transform)
     src.connect("pad-added", pad_added_cb, transform)
     transform.link(sink.sink)
+    sink.set_transformation_element(transform)
   else:
     pipeline.add(src, sink.sink)
     src.link(sink.sink)
