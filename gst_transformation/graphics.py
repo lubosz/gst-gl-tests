@@ -273,9 +273,9 @@ class TransformationBox(Clutter.Actor):
         # translate when zoomed out
         #event.x -= self.area.x
         #event.y -= self.area.y
-        for type, point in list(self.points.items()):
+        for enum, point in list(self.points.items()):
             if point.is_clicked(event):
-                self.clicked_actor = type
+                self.clicked_actor = enum
                 return
 
         if self.rectangle.is_clicked(event):
@@ -288,7 +288,7 @@ class TransformationBox(Clutter.Actor):
     def check_negative_scale(self):
         if self.rectangle.right < self.rectangle.left:
             if self.clicked_actor in [RIGHT, BOTTOM_RIGHT, TOP_RIGHT]:
-                self.rectangle.right = self.left
+                self.rectangle.right = self.rectangle.left
             else:
                 self.rectangle.left = self.rectangle.right
         if self.rectangle.bottom < self.rectangle.top:
@@ -337,6 +337,8 @@ class TransformationBox(Clutter.Actor):
         elif self.clicked_actor == BOTTOM:
             self.rectangle.bottom = event.y
 
+        self.transformation_properties.set_property("transformation-x", self.rectangle.x)
+
         self.check_negative_scale()
 
         self.rectangle.update2()
@@ -348,11 +350,11 @@ class TransformationBox(Clutter.Actor):
             point.clicked = False
         self.clicked_actor = NO_ACTOR
 
-    """
     def set_transformation_properties(self, transformation_properties):
         self.transformation_properties = transformation_properties
         self.update_from_effect(transformation_properties.effect)
 
+"""
     def update_from_effect(self, effect):
         self.scale_x = effect.get_property("scale-x")
         self.scale_y = effect.get_property("scale-y")

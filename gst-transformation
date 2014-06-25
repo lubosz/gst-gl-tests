@@ -65,7 +65,7 @@ if __name__ == "__main__":
     #sink = GstOverlaySink("glimagesink", 1280, 720)
 
     transform = False
-    #transform = True
+    transform = True
 
     if transform:
         transform = Gst.ElementFactory.make("gltransformation", None)
