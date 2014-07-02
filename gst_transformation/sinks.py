@@ -52,6 +52,7 @@ class ClutterSink(GtkClutter.Embed):
 
     def set_transformation_element(self, element):
         self.transformation_element = element
+        self.box.transformation_properties = element
 
     @staticmethod
     def invalidate_cb(data):

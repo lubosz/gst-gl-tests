@@ -337,7 +337,13 @@ class TransformationBox(Clutter.Actor):
         elif self.clicked_actor == BOTTOM:
             self.rectangle.bottom = event.y
 
-        self.transformation_properties.set_property("transformation-x", self.rectangle.x)
+        mapped_x = 3.61 * self.rectangle.left / self.rectangle.width
+        mapped_y = 2.03 * self.rectangle.top / self.rectangle.height
+
+        self.transformation_properties.set_property("translation-x", mapped_x)
+        self.transformation_properties.set_property("translation-y", mapped_y)
+
+        print(self.rectangle.left)
 
         self.check_negative_scale()
 
