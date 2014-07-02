@@ -61,8 +61,8 @@ if __name__ == "__main__":
     src = Gst.ElementFactory.make("uridecodebin", None)
     src.set_property("uri", video_uri)
 
-    sink = ClutterSink(1280, 720)
-    #sink = GstOverlaySink("glimagesink", 1280, 720)
+    #sink = ClutterSink(1280, 720)
+    sink = GstOverlaySink("glimagesink", 1280, 720)
 
     transform = False
     transform = True

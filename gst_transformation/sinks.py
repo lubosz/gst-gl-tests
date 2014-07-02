@@ -71,6 +71,7 @@ class ClutterSink(GtkClutter.Embed):
     def set_handle(self):
         pass
 
+from OpenGL.GL import *
 
 class GstOverlaySink(Gtk.DrawingArea):
     def __init__(self, name, w, h):
@@ -81,8 +82,69 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.set_size_request(w, h)
         self.set_double_buffered(True)
 
+        self.sink.connect("client-draw", self.drawCallback)
+        self.sink.connect("client-reshape", self.reshapeCallback)
+
     def xid(self):
         return self.get_window().get_xid()
 
     def set_handle(self):
         self.sink.set_window_handle(self.xid())
+
+    def set_transformation_element(self, element):
+        self.transformation_element = element
+
+    @staticmethod
+    def reshapeCallback (sink, width, height):
+        glViewport(0, 0, width, height)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        #gluPerspective(45, (gfloat)width/(gfloat)height, 0.1, 100);
+        #glOrtho(0.0f, width, height, 0.0f, 0.0f, 1.0f);
+        glMatrixMode(GL_MODELVIEW)
+
+        return True
+
+    @staticmethod
+    def drawCallback(sink, texture, width, height):
+        glEnable (GL_TEXTURE_2D)
+        glBindTexture (GL_TEXTURE_2D, texture)
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        glTexEnvi (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE)
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+
+
+        glBegin(GL_QUADS)
+        glTexCoord2f(1.0, 0.0)
+        glVertex3f(-1.0, -1.0,  0.0)
+        glTexCoord2f(0.0, 0.0)
+        glVertex3f( 1.0, -1.0,  0.0)
+        glTexCoord2f(0.0, 1.0)
+        glVertex3f( 1.0,  1.0,  0.0)
+        glTexCoord2f(1.0, 1.0)
+        glVertex3f(-1.0,  1.0,  0.0)
+        glEnd()
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+        glBindTexture(GL_TEXTURE_2D, 0)
+
+        glLineWidth(40)
+
+        glBegin(GL_QUADS)
+        glColor4f(0.8, 0.0, 0.8, 0.5)
+        glVertex3f(-0.5, -0.5,  0.0)
+        glVertex3f( 0.5, -0.5,  0.0)
+        glVertex3f( 0.5,  0.5,  0.0)
+        glVertex3f(-0.5,  0.5,  0.0)
+        glEnd()
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+
+        return True
+
