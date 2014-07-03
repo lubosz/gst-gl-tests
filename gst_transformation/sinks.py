@@ -95,7 +95,7 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.transformation_element = element
 
     @staticmethod
-    def reshapeCallback (sink, width, height):
+    def reshapeCallback (sink, context, width, height):
         glViewport(0, 0, width, height)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
@@ -106,7 +106,7 @@ class GstOverlaySink(Gtk.DrawingArea):
         return True
 
     @staticmethod
-    def drawCallback(sink, texture, width, height):
+    def drawCallback(sink, context, texture, width, height):
         glEnable (GL_TEXTURE_2D)
         glBindTexture (GL_TEXTURE_2D, texture)
         glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
