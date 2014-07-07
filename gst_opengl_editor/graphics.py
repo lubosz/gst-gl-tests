@@ -20,7 +20,7 @@ class Point():
         self.x = x
         self.y = y
         self.color = hex_to_rgb('49a0e0')
-        self.clickedColor = hex_to_rgb('ffa854')
+        self.clickedColor = hex_to_rgb('ff8b1b')
         #self.set_width(settings.pointSize)
         self.set_width(DEFAULT_POINT_SIZE)
         self.clicked = False
@@ -44,7 +44,6 @@ class Point():
             return True
 
     def draw(self, cr, w, h):
-
         cr.save()
         cr.scale(w, h)
         # clear background
@@ -59,31 +58,34 @@ class Point():
 
         linear = cairo.LinearGradient(*(from_point + to_point))
 
-        linear.add_color_stop_rgba(0.00, .6, .6, .6, 1)
+        linear.add_color_stop_rgba(0.00, .6, .6, .6, .5)
         linear.add_color_stop_rgba(0.50, .4, .4, .4, .1)
         linear.add_color_stop_rgba(0.60, .4, .4, .4, .1)
-        linear.add_color_stop_rgba(1.00, .6, .6, .6, 1)
+        linear.add_color_stop_rgba(1.00, .6, .6, .6, .5)
 
         # x, y, radius
-        inner_circle = (x + radius / 2, y - radius / 2, 1)
+        inner_circle = (x + .1, y - .1, radius / 10.0)
         outer_circle = (x, y, radius)
 
-        radial = cairo.RadialGradient(*(inner_circle+outer_circle))
+        radial = cairo.RadialGradient(*(inner_circle + outer_circle))
         if self.clicked:
-            radial.add_color_stop_rgb(0, *self.clickedColor)
+            print("clicked color", self.clickedColor)
+            radial.add_color_stop_rgb(0.0, *self.clickedColor)
         else:
             radial.add_color_stop_rgb(0, *self.color)
         radial.add_color_stop_rgb(1, 0.1, 0.1, 0.1)
 
+        glow_multiplier = 1.5
+
         inner_circle = (x, y, radius * .9)
-        outer_circle = (x, y, radius * 1.2)
+        outer_circle = (x, y, radius * glow_multiplier)
 
         radial_glow = cairo.RadialGradient(*(inner_circle+outer_circle))
         radial_glow.add_color_stop_rgba(0, 0.9, 0.9, 0.9, 1)
         radial_glow.add_color_stop_rgba(1, 0.9, 0.9, 0.9, 0)
 
         cr.set_source(radial_glow)
-        cr.arc(x, y, radius * 1.2, 0, 2 * pi)
+        cr.arc(x, y, radius * glow_multiplier, 0, 2 * pi)
         cr.fill()
 
         cr.arc(x, y, radius * .9, 0, 2 * pi)

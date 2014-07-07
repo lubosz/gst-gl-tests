@@ -11,10 +11,12 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 video_uri = "file:///home/bmonkey/workspace/ges/data/hd/Return to split point.mp4"
 
+
 def quit_app(widget, pipeline):
     widget.hide()
     pipeline.set_state(Gst.State.NULL)
     Gtk.main_quit()
+
 
 class GstOpenGLEditor():
     @staticmethod
@@ -90,7 +92,7 @@ class GstOpenGLEditor():
         window.show_all()
 
         sink.set_handle()
-        
+
         if pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
             pipeline.set_state(Gst.State.NULL)
         else:

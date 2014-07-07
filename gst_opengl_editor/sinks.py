@@ -1,5 +1,6 @@
 from gi.repository import GLib
 from gi.repository import Gtk
+from gi.repository import Gdk
 from gi.repository import Clutter
 from gi.repository import GtkClutter
 from gi.repository import ClutterGst
@@ -157,6 +158,17 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.sink.connect("client-draw", self.draw)
         self.sink.connect("client-reshape", self.reshape)
 
+        self.connect("button-press-event", self.on_button_press)
+        self.connect("button-release-event", self.on_button_release)
+        self.connect("motion-notify-event", self.on_motion)
+
+        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+        self.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+
+        #from IPython import embed
+        #embed()
+
         self.gl_init = False
         self.meshes = {}
         self.shaders = {}
@@ -170,6 +182,15 @@ class GstOverlaySink(Gtk.DrawingArea):
 
     def set_transformation_element(self, element):
         self.transformation_element = element
+
+    def on_button_press(self, sink, event):
+        print("press", event.x, event.y)
+
+    def on_button_release(self, sink, event):
+        print("release", event.x, event.y)
+
+    def on_motion(self, sink, event):
+        print("motion", event.x, event.y)
 
     def init_gl(self, context, width, height):
         print("OpenGL version: %s" % glGetString(GL_VERSION).decode("utf-8"))
@@ -252,6 +273,10 @@ class GstOverlaySink(Gtk.DrawingArea):
 
         self.cairo_textures["handle"] = CairoTexture(GL_TEXTURE1, 100, 100)
         self.cairo_textures["handle"].draw(p.draw)
+
+        self.cairo_textures["handle_clicked"] = CairoTexture(GL_TEXTURE2, 100, 100)
+        p.clicked = True
+        self.cairo_textures["handle_clicked"].draw(p.draw)
 
         return True
 
