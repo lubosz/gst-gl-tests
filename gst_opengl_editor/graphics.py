@@ -43,39 +43,58 @@ class Point():
             self.clicked = True
             return True
 
-    def draw(self, cr):
-        linear = cairo.LinearGradient(self.x, self.y - self.radius,
-                                      self.x, self.y + self.radius)
+    def draw(self, cr, w, h):
+
+        cr.save()
+        cr.scale(w, h)
+        # clear background
+        cr.set_operator(cairo.OPERATOR_OVER)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.0)
+        cr.paint()
+
+        x, y, radius = self.x, self.y, self.radius
+
+        from_point = (x, y - radius)
+        to_point = (x, y + radius)
+
+        linear = cairo.LinearGradient(*(from_point + to_point))
+
         linear.add_color_stop_rgba(0.00, .6, .6, .6, 1)
         linear.add_color_stop_rgba(0.50, .4, .4, .4, .1)
         linear.add_color_stop_rgba(0.60, .4, .4, .4, .1)
         linear.add_color_stop_rgba(1.00, .6, .6, .6, 1)
 
-        radial = cairo.RadialGradient(self.x + self.radius / 2,
-                                      self.y - self.radius / 2, 1,
-                                      self.x, self.y,
-                                      self.radius)
+        # x, y, radius
+        inner_circle = (x + radius / 2, y - radius / 2, 1)
+        outer_circle = (x, y, radius)
+
+        radial = cairo.RadialGradient(*(inner_circle+outer_circle))
         if self.clicked:
             radial.add_color_stop_rgb(0, *self.clickedColor)
         else:
             radial.add_color_stop_rgb(0, *self.color)
         radial.add_color_stop_rgb(1, 0.1, 0.1, 0.1)
-        radial_glow = cairo.RadialGradient(self.x, self.y,
-                                           self.radius * .9,
-                                           self.x, self.y,
-                                           self.radius * 1.2)
+
+        inner_circle = (x, y, radius * .9)
+        outer_circle = (x, y, radius * 1.2)
+
+        radial_glow = cairo.RadialGradient(*(inner_circle+outer_circle))
         radial_glow.add_color_stop_rgba(0, 0.9, 0.9, 0.9, 1)
         radial_glow.add_color_stop_rgba(1, 0.9, 0.9, 0.9, 0)
 
         cr.set_source(radial_glow)
-        cr.arc(self.x, self.y, self.radius * 1.2, 0, 2 * pi)
+        cr.arc(x, y, radius * 1.2, 0, 2 * pi)
         cr.fill()
-        cr.arc(self.x, self.y, self.radius * .9, 0, 2 * pi)
+
+        cr.arc(x, y, radius * .9, 0, 2 * pi)
         cr.set_source(radial)
         cr.fill()
-        cr.arc(self.x, self.y, self.radius * .9, 0, 2 * pi)
+
+        cr.arc(x, y, radius * .9, 0, 2 * pi)
         cr.set_source(linear)
         cr.fill()
+
+        cr.restore()
 
 (NO_ACTOR,
  RECTANGLE,

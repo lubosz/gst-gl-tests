@@ -76,6 +76,33 @@ class ClutterSink(GtkClutter.Embed):
 from OpenGL.GL import *
 
 
+class CairoTexture():
+    def __init__(self, gl_id, width, height):
+        self.width, self.height = width, height
+        self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        self.ctx = cairo.Context(self.surface)
+        glActiveTexture(gl_id)
+        self.texture_handle = glGenTextures(1)
+
+    def draw(self, callback):
+        glBindTexture(GL_TEXTURE_RECTANGLE, self.texture_handle)
+        callback(self.ctx, self.width, self.height)
+        glTexImage2D(GL_TEXTURE_RECTANGLE,
+                     0,
+                     GL_RGBA,
+                     self.width,
+                     self.height,
+                     0,
+                     GL_BGRA,
+                     GL_UNSIGNED_BYTE,
+                     self.surface.get_data())
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+
+    def delete(self):
+        if self.texture_handle:
+            glDeleteTextures(self.texture_handle)
+
+
 class GstOverlaySink(Gtk.DrawingArea):
     simple_vert = """
       attribute vec4 position;
@@ -133,7 +160,7 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.gl_init = False
         self.meshes = {}
         self.shaders = {}
-        self.cairo_texture_id = None
+        self.cairo_textures = {}
 
     def xid(self):
         return self.get_window().get_xid()
@@ -193,6 +220,9 @@ class GstOverlaySink(Gtk.DrawingArea):
                 1, 1, 0, 1,
                 1, -1, 0, 1,
                 -1, -1, 0, 1], 4)
+
+        #width, height = 100, 100
+
         self.meshes["plane_wh"].add(
             "uv", [
                 0.0, 0.0,
@@ -215,27 +245,13 @@ class GstOverlaySink(Gtk.DrawingArea):
 
         self.aspect = width/height
 
-        # cairo
-        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
-        self.ctx = cairo.Context(surface)
-        self.ctx.scale(width, height)
+        x, y, radius = 0.5, 0.5, 0.5
 
-        glActiveTexture(GL_TEXTURE1)
-        if self.cairo_texture_id:
-            glDeleteTextures(self.cairo_texture_id)
-        self.cairo_texture_id = glGenTextures(1)
-        glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_texture_id)
-        self.render_cairo(self.ctx, width, height)
-        glTexImage2D(GL_TEXTURE_RECTANGLE,
-                     0,
-                     GL_RGBA,
-                     width,
-                     height,
-                     0,
-                     GL_BGRA,
-                     GL_UNSIGNED_BYTE,
-                     surface.get_data())
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        p = Point(x, y)
+        p.set_width(radius)
+
+        self.cairo_textures["handle"] = CairoTexture(GL_TEXTURE1, 100, 100)
+        self.cairo_textures["handle"].draw(p.draw)
 
         return True
 
@@ -265,7 +281,7 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.shaders["cairo"].use()
         self.meshes["plane_wh"].bind(self.shaders["cairo"])
 
-        glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_texture_id)
+        glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_textures["handle"].texture_handle)
         self.shaders["cairo"].set_uniform_1i("cairoSampler", 1)
 
         location = glGetUniformLocation(self.shaders["cairo"].get_program_handle(), "mvp")
@@ -280,49 +296,9 @@ class GstOverlaySink(Gtk.DrawingArea):
         if len(self.shaders) < 1:
             return
 
-        if not self.cairo_texture_id:
+        if len(self.cairo_textures) < 1:
             return
 
         self.draw_two_pass(context, texture)
 
         return True
-
-    @staticmethod
-    def render_cairo(cr, width, height):
-        cr.save()
-
-        # clear background
-        cr.set_operator(cairo.OPERATOR_OVER)
-        #cr.scale(width, height)
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.0)
-        cr.paint()
-
-        pat = cairo.LinearGradient(0.0, 0.0, 0.0, 1.0)
-        # First stop, 50% opacity
-        pat.add_color_stop_rgba(1, 0.7, 0, 0, 0.5)
-        # Last stop, 100% opacity
-        pat.add_color_stop_rgba(0, 0.9, 0.7, 0.2, 1)
-
-        # Rectangle(x0, y0, x1, y1)
-        cr.rectangle(0, 0, 1, 1)
-        cr.set_source(pat)
-        cr.fill()
-
-        # Changing the current transformation matrix
-        cr.translate(0.1, 0.1)
-
-        cr.move_to(0, 0)
-        # Arc(cx, cy, radius, start_angle, stop_angle)
-        cr.arc(0.2, 0.1, 0.1, -math.pi/2, 0)
-        # Line to (x,y)
-        cr.line_to(0.5, 0.1)
-        # Curve(x1, y1, x2, y2, x3, y3)
-        cr.curve_to(0.5, 0.2, 0.5, 0.4, 0.2, 0.8)
-        cr.close_path()
-
-        # Solid color
-        cr.set_source_rgb(0.3, 0.2, 0.5)
-        cr.set_line_width(0.02)
-        cr.stroke()
-
-        cr.restore()
