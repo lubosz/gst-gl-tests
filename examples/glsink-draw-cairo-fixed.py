@@ -120,9 +120,7 @@ class FixedFunctionCairoGL:
         #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glEnable(GL_TEXTURE_RECTANGLE)
 
-        #self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
-        buffer = numpy.zeros(height*width*4, dtype=numpy.uint8)
-        surface = ImageSurface.create_for_data(buffer, FORMAT_ARGB32, width, height)
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
         self.cr = cairo.Context(surface)
 
         glViewport(0, 0, width, height)
@@ -132,9 +130,6 @@ class FixedFunctionCairoGL:
 
         glClear(GL_COLOR_BUFFER_BIT)
 
-        #glDeleteTextures(texture_id)
-
-        #return True
         glActiveTexture(GL_TEXTURE1)
 
         self.texture_id = glGenTextures(1)
@@ -148,7 +143,7 @@ class FixedFunctionCairoGL:
                      0,
                      GL_BGRA,
                      GL_UNSIGNED_BYTE,
-                     buffer)
+                     surface.get_data())
         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
 
         return True
@@ -158,18 +153,8 @@ class FixedFunctionCairoGL:
         if not self.texture_id:
                 return
 
-        #glViewport(0, 0, width, height)
-
-        #glActiveTexture(GL_TEXTURE0)
-        #glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, texture)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE)
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
@@ -186,22 +171,10 @@ class FixedFunctionCairoGL:
 
         #return
 
-        #glPushMatrix()
-
         glBindTexture(GL_TEXTURE_RECTANGLE, self.texture_id)
 
-        #glScale(0.4, 0.4, 1)
         glBegin(GL_QUADS)
-        """
-        glTexCoord2f(0.0, 0.0)
-        glVertex3f(-1.0, -1.0,  0.0)
-        glTexCoord2f(width, 0.0)
-        glVertex3f(1.0, -1.0,  0.0)
-        glTexCoord2f(width, height)
-        glVertex3f(1.0,  1.0,  0.0)
-        glTexCoord2f(0.0, height)
-        glVertex3f(-1.0,  1.0,  0.0)
-        """
+
         glTexCoord2f(0.0, 0.0)
         glVertex2f(0.0, 0.0)
         glTexCoord2f(width, 0.0)
@@ -212,7 +185,6 @@ class FixedFunctionCairoGL:
         glVertex2f(0.0, 1.0)
 
         glEnd()
-        #glPopMatrix()
         return True
 
     @staticmethod
