@@ -69,7 +69,6 @@ class Point():
 
         radial = cairo.RadialGradient(*(inner_circle + outer_circle))
         if self.clicked:
-            print("clicked color", self.clickedColor)
             radial.add_color_stop_rgb(0.0, *self.clickedColor)
         else:
             radial.add_color_stop_rgb(0, *self.color)

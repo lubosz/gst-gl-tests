@@ -4,12 +4,21 @@ from gi.repository import Gdk
 from gi.repository import Clutter
 from gi.repository import GtkClutter
 from gi.repository import ClutterGst
-from gi.repository import Gst, GstGL
+from gi.repository import Gst, GstGL, Graphene
 
 from gst_opengl_editor.graphics import *
 from gst_opengl_editor.opengl import Mesh
 
 import numpy, math
+
+def matrix_to_array(m):
+    result = []
+    for x in range(0, 4):
+        result.append([m.get_value(x, 0),
+                       m.get_value(x, 1),
+                       m.get_value(x, 2),
+                       m.get_value(x, 3)])
+    return numpy.array(result, 'd')
 
 class ClutterSink(GtkClutter.Embed):
     def __init__(self, w, h):
@@ -166,6 +175,8 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
         self.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
 
+        self.handle_x, self.handle_y = 0, 0
+
         #from IPython import embed
         #embed()
 
@@ -173,6 +184,8 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.meshes = {}
         self.shaders = {}
         self.cairo_textures = {}
+        self.clicked = False
+        self.click_point = None
 
     def xid(self):
         return self.get_window().get_xid()
@@ -184,13 +197,28 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.transformation_element = element
 
     def on_button_press(self, sink, event):
-        print("press", event.x, event.y)
+        self.clicked = True
+        self.click_point = (event.x/1280.0, event.y/720.0)
+        self.original_position = (self.handle_x, self.handle_y)
+        #print("press", event.x, event.y)
 
     def on_button_release(self, sink, event):
-        print("release", event.x, event.y)
+        self.clicked = False
+        #print("release", event.x, event.y)
 
     def on_motion(self, sink, event):
-        print("motion", event.x, event.y)
+
+        if not self.click_point:
+            return
+
+        if not self.clicked:
+            return
+
+        rel_point = (2 * event.x / 1280.0 - 1, 2 * event.y / 720.0 - 1)
+        self.handle_x, self.handle_y = rel_point[0], -rel_point[1]
+
+        self.transformation_element.set_property("translation-x", 1280.0/720.0 * self.handle_x)
+        self.transformation_element.set_property("translation-y", -self.handle_y)
 
     def init_gl(self, context, width, height):
         print("OpenGL version: %s" % glGetString(GL_VERSION).decode("utf-8"))
@@ -235,14 +263,31 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.meshes["plane_tri"].set_index([0, 1, 3, 2])
 
         self.meshes["plane_wh"] = Mesh(GL_TRIANGLE_STRIP)
+
+        """
         self.meshes["plane_wh"].add(
             "position", [
                 -1, 1, 0, 1,
                 1, 1, 0, 1,
                 1, -1, 0, 1,
                 -1, -1, 0, 1], 4)
+        """
 
-        #width, height = 100, 100
+        halforig_w, halforig_h = width / 2.0, height / 2.0
+
+        halfplane_w, halfplane_h = 50, 50
+
+        final_w, final_h = halfplane_w / halforig_w, halfplane_h / halforig_h
+
+        self.meshes["plane_wh"].add(
+            "position", [
+                -final_w, final_h, 0, 1,
+                final_w, final_h, 0, 1,
+                final_w, -final_h, 0, 1,
+                -final_w, -final_h, 0, 1], 4)
+
+
+        width, height = 100, 100
 
         self.meshes["plane_wh"].add(
             "uv", [
@@ -306,11 +351,25 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.shaders["cairo"].use()
         self.meshes["plane_wh"].bind(self.shaders["cairo"])
 
-        glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_textures["handle"].texture_handle)
-        self.shaders["cairo"].set_uniform_1i("cairoSampler", 1)
+        if self.clicked:
+            glActiveTexture(GL_TEXTURE2)
+            glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_textures["handle_clicked"].texture_handle)
+            self.shaders["cairo"].set_uniform_1i("cairoSampler", 2)
+        else:
+            glActiveTexture(GL_TEXTURE1)
+            glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_textures["handle"].texture_handle)
+            self.shaders["cairo"].set_uniform_1i("cairoSampler", 1)
+
+        model_matrix = Graphene.Matrix.alloc()
+
+        translation_vector = Graphene.Point3D.alloc()
+        translation_vector.init(self.handle_x, self.handle_y, 0)
+
+        model_matrix.init_translate(translation_vector)
 
         location = glGetUniformLocation(self.shaders["cairo"].get_program_handle(), "mvp")
-        glUniformMatrix4fv(location, 1, GL_FALSE, numpy.identity(4))
+        #glUniformMatrix4fv(location, 1, GL_FALSE, numpy.identity(4))
+        glUniformMatrix4fv(location, 1, GL_FALSE, matrix_to_array(model_matrix))
 
         self.meshes["plane_wh"].draw()
         self.meshes["plane_wh"].unbind()

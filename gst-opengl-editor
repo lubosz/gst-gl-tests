@@ -83,11 +83,10 @@ class GstOpenGLEditor():
 
         box = Gtk.Box()
         box.set_orientation(Gtk.Orientation.HORIZONTAL)
-        box.add(sink)
 
         if transform:
             box.add(ElementScaleBox(transform))
-
+        box.add(sink)
         window.add(box)
         window.show_all()
 
