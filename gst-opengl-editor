@@ -79,7 +79,9 @@ class GstOpenGLEditor():
         box = Gtk.Box()
         box.set_orientation(Gtk.Orientation.HORIZONTAL)
 
-        box.add(ElementScaleBox(transform))
+        slider_box = Transformation2DSliderBox(transform, sink.scene)
+
+        box.add(slider_box)
         box.add(sink)
 
         outer_box.add(box)

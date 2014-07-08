@@ -2,7 +2,7 @@ __author__ = 'Lubosz Sarnecki'
 
 from gi.repository import Graphene
 import numpy
-
+import math
 from gst_opengl_editor.graphics import *
 
 
@@ -18,14 +18,14 @@ def matrix_to_array(m):
 
 class Scene():
     def __init__(self):
-        self.actors = []
+        self.handles = {}
         self.graphics = {}
         self.width, self.height = 0, 0
         self.init = False
         self.focused_actor = None
 
     def on_press(self, event):
-        for actor in self.actors:
+        for actor in self.handles.values():
             if actor.is_clicked(self.relative_position(event)):
                 self.focused_actor = actor
 
@@ -38,6 +38,11 @@ class Scene():
         return (2 * x - 1,
                 (2 * y - 1))
 
+    def aspect(self):
+        if self.width == 0 or self.height == 0:
+            return 1
+        return self.width / self.height
+
     def on_motion(self, sink, event):
         if not self.focused_actor:
             return
@@ -49,22 +54,21 @@ class Scene():
     def on_release(self, sink, event):
         self.focused_actor = None
 
-        for actor in self.actors:
+        for actor in self.handles.values():
             actor.clicked = False
 
     def reshape(self, sink, context, width, height):
+        self.width, self.height = width, height
+
         if not self.init:
-            self.init_gl(context, width, height)
+            self.init_gl(context)
             self.init = True
 
         glViewport(0, 0, width, height)
 
-        self.aspect = width/height
-        self.width, self.height = width, height
-
         return True
 
-    def init_gl(self, context, width, height):
+    def init_gl(self, context):
         print("OpenGL version: %s" % glGetString(GL_VERSION).decode("utf-8"))
         print("OpenGL vendor: %s" % glGetString(GL_VENDOR).decode("utf-8"))
         print("OpenGL renderer: %s" % glGetString(GL_RENDERER).decode("utf-8"))
@@ -84,6 +88,7 @@ class Actor():
     def __init__(self, x=0, y=0):
         self.position = (x, y)
         self.clicked = False
+        self.initital_position = self.position
 
     def motion(self):
         pass
@@ -126,24 +131,34 @@ class TransformScene(Scene):
     def __init__(self):
         Scene.__init__(self)
 
-        self.actors.append(Actor(-1, -1))
-        self.actors.append(Actor(-1,  1))
-        self.actors.append(Actor( 1,  1))
-        self.actors.append(Actor( 1, -1))
+        self.handles = {
+            "1BL": Actor(-1, -1),
+            "2TL": Actor(-1, 1),
+            "3TR": Actor(1, 1),
+            "4BR": Actor(1, -1)}
 
         self.graphics["handle"] = HandleGraphic(100, 100)
         self.graphics["video"] = VideoGraphic()
-        self.graphics["box"] = BoxGraphic(1280, 720, self.actors)
+        self.graphics["box"] = BoxGraphic(1280, 720, self.handles.values())
 
-    def init_gl(self, context, width, height):
-        Scene.init_gl(self, context, width, height)
-        self.width, self.height = width, height
+    def init_gl(self, context):
+        Scene.init_gl(self, context)
 
-        self.graphics["handle"].init_gl(context, width, height)
-        self.graphics["box"].init_gl(context, width, height)
+        self.graphics["handle"].init_gl(context, self.width, self.height)
+        self.graphics["box"].init_gl(context, self.width, self.height)
         self.graphics["video"].init_gl(context)
 
         self.init = True
+
+    def reposition(self, matrix):
+        for handle in self.handles.values():
+            vector = numpy.array([handle.initital_position[0] * math.pi,
+                                  -handle.initital_position[1],
+                                  0, 1])
+            vector_transformed = numpy.dot(vector, matrix)
+
+            handle.position = (vector_transformed[0] / self.aspect(),
+                               -vector_transformed[1])
 
     def draw(self, sink, context, video_texture, w, h):
         if not self.init:
@@ -157,7 +172,7 @@ class TransformScene(Scene):
         self.graphics["video"].draw(video_texture, numpy.identity(4))
         context.clear_shader()
 
-        self.graphics["box"].draw(self.actors)
-        self.graphics["handle"].draw_actors(self.actors)
+        self.graphics["box"].draw(self.handles)
+        self.graphics["handle"].draw_actors(self.handles.values())
 
         return True

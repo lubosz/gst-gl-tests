@@ -3,9 +3,6 @@ import cairo
 
 from math import pi
 
-MINIMAL_POINT_SIZE = 7
-DEFAULT_POINT_SIZE = 25
-
 from OpenGL.GL import *
 from gst_opengl_editor.opengl import *
 
@@ -167,8 +164,8 @@ class BoxGraphic(Graphic):
 
         self.handle_positions = []
 
-        for handle in handles:
-            self.handle_positions.append(handle.position)
+        for h in sorted(handles):
+            self.handle_positions.append(handles[h].position)
         self.texture.draw(self.draw_cairo)
 
         self.rebind_texture()
