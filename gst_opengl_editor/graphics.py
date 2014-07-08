@@ -193,16 +193,15 @@ class BoxGraphic(Graphic):
         cr.set_source_rgba(0.5, 0.5, 0.5, 0.7)
 
         # from [-1, 1] to [0, 1]
-        #for handle in self.handle_positions:
-        #    cr.line_to(*self.convert_range(handle))
+        for handle in self.handle_positions:
+            cr.line_to(*self.convert_range(handle))
 
         cr.line_to(*self.convert_range(self.handle_positions[0]))
-        cr.line_to(*self.convert_range(self.handle_positions[1]))
-        cr.line_to(*self.convert_range(self.handle_positions[2]))
-        cr.line_to(*self.convert_range(self.handle_positions[3]))
-        cr.line_to(*self.convert_range(self.handle_positions[0]))
 
-        cr.set_line_width(0.025)
+        cr.identity_matrix()
+
+        cr.set_line_width(32)
+        cr.set_line_join(cairo.LINE_JOIN_BEVEL)
 
         cr.stroke()
 

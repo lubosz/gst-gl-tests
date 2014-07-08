@@ -22,17 +22,6 @@ class Scene():
         self.graphics = {}
         self.width, self.height = 0, 0
         self.init = False
-
-        self.actors.append(Actor(-1, -1))
-        self.actors.append(Actor(-1,  1))
-        self.actors.append(Actor( 1,  1))
-        self.actors.append(Actor( 1, -1))
-
-        self.graphics["handle"] = BoxHandleGraphic(100, 100)
-        self.graphics["video"] = VideoGraphic()
-
-        self.graphics["box"] = BoxGraphic(1280, 720, self.actors)
-
         self.focused_actor = None
 
     def on_press(self, event):
@@ -41,7 +30,6 @@ class Scene():
                 self.focused_actor = actor
 
     def relative_position(self, event):
-
         # between 0 and 1
         x = event.x / self.width
         y = 1.0 - (event.y / self.height)
@@ -65,35 +53,6 @@ class Scene():
     def reshape(self, width, height):
         self.width, self.height = width, height
 
-    def init_gl(self, context, width, height):
-        self.width, self.height = width, height
-
-        self.graphics["handle"].init_gl(context, width, height)
-        self.graphics["box"].init_gl(context, width, height)
-        self.graphics["video"].init_gl(context)
-
-        self.init = True
-
-    def draw(self, context, video_texture):
-        if not self.init:
-            return
-
-        context.clear_shader()
-        glBindTexture(GL_TEXTURE_2D, 0)
-
-        glClearColor(0, 0, 0, 1)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        self.graphics["video"].draw(video_texture, numpy.identity(4))
-        context.clear_shader()
-
-        self.graphics["box"].draw(self.actors)
-        self.graphics["handle"].draw_actors(self.actors)
-
-
-
-        context.clear_shader()
-
 
 class Actor():
     def __init__(self, x=0, y=0):
@@ -110,13 +69,10 @@ class Actor():
         vpos.init(self.position[0], self.position[1])
         vdistance = vclick.subtract(vpos)
 
-        #if True:
         if vdistance.length() < 0.1:
             self.clicked = True
         else:
             self.clicked = False
-
-        #print(distance, self.clicked)
 
         return self.clicked
 
@@ -129,3 +85,49 @@ class Actor():
         model_matrix.init_translate(translation_vector)
 
         return matrix_to_array(model_matrix)
+
+
+class BoxActor(Actor):
+    def __init__(self):
+        Actor.__init__(self)
+        self.handles = []
+
+    def is_clicked(self, click):
+        pass
+
+class FreeTransformScene(Scene):
+    def __init__(self):
+        Scene.__init__(self)
+
+        self.actors.append(Actor(-1, -1))
+        self.actors.append(Actor(-1,  1))
+        self.actors.append(Actor( 1,  1))
+        self.actors.append(Actor( 1, -1))
+
+        self.graphics["handle"] = BoxHandleGraphic(100, 100)
+        self.graphics["video"] = VideoGraphic()
+        self.graphics["box"] = BoxGraphic(1280, 720, self.actors)
+
+    def init_gl(self, context, width, height):
+        self.width, self.height = width, height
+
+        self.graphics["handle"].init_gl(context, width, height)
+        self.graphics["box"].init_gl(context, width, height)
+        self.graphics["video"].init_gl(context)
+
+        self.init = True
+
+    def draw(self, context, video_texture):
+        if not self.init:
+            return
+
+        context.clear_shader()
+
+        glClearColor(0, 0, 0, 1)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        self.graphics["video"].draw(video_texture, numpy.identity(4))
+        context.clear_shader()
+
+        self.graphics["box"].draw(self.actors)
+        self.graphics["handle"].draw_actors(self.actors)

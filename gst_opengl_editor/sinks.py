@@ -11,7 +11,7 @@ from gst_opengl_editor.opengl import *
 
 import numpy
 from OpenGL.GL import *
-from gst_opengl_editor.scene import Actor, Scene
+from gst_opengl_editor.scene import Actor, Scene, FreeTransformScene
 
 
 class ClutterSink(GtkClutter.Embed):
@@ -111,7 +111,7 @@ class CairoGLSink(GstOverlaySink):
 
         self.gl_init = False
 
-        self.scene = Scene()
+        self.scene = FreeTransformScene()
 
         self.canvas_width, self.canvas_height = w, h
         self.aspect = w/h
