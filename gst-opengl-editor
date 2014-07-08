@@ -81,21 +81,42 @@ class GstOpenGLEditor():
         window.set_default_size(width, height)
         window.set_title("GStreamer OpenGL Editor")
 
+        outer_box = Gtk.Box()
+        outer_box.set_orientation(Gtk.Orientation.VERTICAL)
+
         box = Gtk.Box()
         box.set_orientation(Gtk.Orientation.HORIZONTAL)
 
         if transform:
             box.add(ElementScaleBox(transform))
         box.add(sink)
-        window.add(box)
+
+        outer_box.add(box)
+
+        pause_button = Gtk.Button()
+        pause_button.set_label("Pause")
+        outer_box.add(pause_button)
+
+        pause_button.connect("clicked", self.pause, pipeline, sink)
+
+        window.add(outer_box)
         window.show_all()
 
         sink.set_handle()
+        sink.set_pipeline(pipeline)
 
         if pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
             pipeline.set_state(Gst.State.NULL)
         else:
             Gtk.main()
+
+    @staticmethod
+    def pause(button, pipeline, sink):
+        if pipeline.get_state(Gst.CLOCK_TIME_NONE)[1] == Gst.State.PAUSED:
+            pipeline.set_state(Gst.State.PLAYING)
+        else:
+            pipeline.set_state(Gst.State.PAUSED)
+            sink.set_pipeline_position(pipeline.query_position(Gst.Format.TIME)[1])
 
     @staticmethod
     def window_closed(widget, event, pipeline):

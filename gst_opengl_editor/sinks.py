@@ -196,11 +196,29 @@ class GstOverlaySink(Gtk.DrawingArea):
     def set_transformation_element(self, element):
         self.transformation_element = element
 
+    def set_pipeline(self, pipeline):
+        self.pipeline = pipeline
+
+    def set_pipeline_position(self, position):
+        self.pipeline_position = position
+
+    def flush_seek(self):
+        self.pipeline.seek_simple(
+            Gst.Format.TIME,
+            Gst.SeekFlags.FLUSH,
+            #3 * Gst.SECOND)
+            self.pipeline_position)
+        return True
+
     def on_button_press(self, sink, event):
         self.clicked = True
         self.click_point = (event.x/1280.0, event.y/720.0)
         self.original_position = (self.handle_x, self.handle_y)
         #print("press", event.x, event.y)
+
+        if self.pipeline.get_state(Gst.CLOCK_TIME_NONE)[1] == Gst.State.PAUSED:
+            self.flush_seek_timer = GLib.timeout_add(90, self.flush_seek)
+            print(self.flush_seek_timer)
 
     def on_button_release(self, sink, event):
         self.clicked = False
