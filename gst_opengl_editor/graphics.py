@@ -42,7 +42,7 @@ class VideoGraphic(Graphic):
         self.mesh.unbind()
 
 
-class BoxHandleGraphic(Graphic):
+class HandleGraphic(Graphic):
     def __init__(self, width, height):
         Graphic.__init__(self)
         self.draw_clicked = False

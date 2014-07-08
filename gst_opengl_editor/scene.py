@@ -38,20 +38,46 @@ class Scene():
         return (2 * x - 1,
                 (2 * y - 1))
 
-    def on_motion(self, event):
+    def on_motion(self, sink, event):
         if not self.focused_actor:
             return
 
         self.focused_actor.position = self.relative_position(event)
+        #self.transformation_element.set_property("translation-x", self.aspect * self.scene.actors["handle"].position[0])
+        #self.transformation_element.set_property("translation-y", -self.scene.actors["handle"].position[1])
 
-    def on_release(self, event):
+    def on_release(self, sink, event):
         self.focused_actor = None
 
         for actor in self.actors:
             actor.clicked = False
 
-    def reshape(self, width, height):
+    def reshape(self, sink, context, width, height):
+        if not self.init:
+            self.init_gl(context, width, height)
+            self.init = True
+
+        glViewport(0, 0, width, height)
+
+        self.aspect = width/height
         self.width, self.height = width, height
+
+        return True
+
+    def init_gl(self, context, width, height):
+        print("OpenGL version: %s" % glGetString(GL_VERSION).decode("utf-8"))
+        print("OpenGL vendor: %s" % glGetString(GL_VENDOR).decode("utf-8"))
+        print("OpenGL renderer: %s" % glGetString(GL_RENDERER).decode("utf-8"))
+
+        print("Version: %d.%d" % (glGetIntegerv(GL_MAJOR_VERSION),
+                                  glGetIntegerv(GL_MINOR_VERSION)))
+
+        glClearColor(0.0, 0.0, 0.0, 0.0)
+        glDisable(GL_DEPTH_TEST)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+        glEnable(GL_TEXTURE_RECTANGLE)
 
 
 class Actor():
@@ -95,7 +121,8 @@ class BoxActor(Actor):
     def is_clicked(self, click):
         pass
 
-class FreeTransformScene(Scene):
+
+class TransformScene(Scene):
     def __init__(self):
         Scene.__init__(self)
 
@@ -104,11 +131,12 @@ class FreeTransformScene(Scene):
         self.actors.append(Actor( 1,  1))
         self.actors.append(Actor( 1, -1))
 
-        self.graphics["handle"] = BoxHandleGraphic(100, 100)
+        self.graphics["handle"] = HandleGraphic(100, 100)
         self.graphics["video"] = VideoGraphic()
         self.graphics["box"] = BoxGraphic(1280, 720, self.actors)
 
     def init_gl(self, context, width, height):
+        Scene.init_gl(self, context, width, height)
         self.width, self.height = width, height
 
         self.graphics["handle"].init_gl(context, width, height)
@@ -117,7 +145,7 @@ class FreeTransformScene(Scene):
 
         self.init = True
 
-    def draw(self, context, video_texture):
+    def draw(self, sink, context, video_texture, w, h):
         if not self.init:
             return
 
@@ -131,3 +159,5 @@ class FreeTransformScene(Scene):
 
         self.graphics["box"].draw(self.actors)
         self.graphics["handle"].draw_actors(self.actors)
+
+        return True
