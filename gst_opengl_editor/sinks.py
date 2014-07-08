@@ -7,18 +7,12 @@ from gi.repository import ClutterGst
 from gi.repository import Gst, GstGL, Graphene
 
 from gst_opengl_editor.graphics import *
-from gst_opengl_editor.opengl import Mesh
+from gst_opengl_editor.opengl import *
 
-import numpy, math
+import numpy
+from OpenGL.GL import *
+from gst_opengl_editor.scene import Actor, Scene
 
-def matrix_to_array(m):
-    result = []
-    for x in range(0, 4):
-        result.append([m.get_value(x, 0),
-                       m.get_value(x, 1),
-                       m.get_value(x, 2),
-                       m.get_value(x, 3)])
-    return numpy.array(result, 'd')
 
 class ClutterSink(GtkClutter.Embed):
     def __init__(self, w, h):
@@ -83,79 +77,8 @@ class ClutterSink(GtkClutter.Embed):
     def set_handle(self):
         pass
 
-from OpenGL.GL import *
-
-
-class CairoTexture():
-    def __init__(self, gl_id, width, height):
-        self.width, self.height = width, height
-        self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
-        self.ctx = cairo.Context(self.surface)
-        glActiveTexture(gl_id)
-        self.texture_handle = glGenTextures(1)
-
-    def draw(self, callback):
-        glBindTexture(GL_TEXTURE_RECTANGLE, self.texture_handle)
-        callback(self.ctx, self.width, self.height)
-        glTexImage2D(GL_TEXTURE_RECTANGLE,
-                     0,
-                     GL_RGBA,
-                     self.width,
-                     self.height,
-                     0,
-                     GL_BGRA,
-                     GL_UNSIGNED_BYTE,
-                     self.surface.get_data())
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-
-    def delete(self):
-        if self.texture_handle:
-            glDeleteTextures(self.texture_handle)
-
 
 class GstOverlaySink(Gtk.DrawingArea):
-    simple_vert = """
-      attribute vec4 position;
-      attribute vec2 uv;
-      uniform mat4 mvp;
-      varying vec2 out_uv;
-      void main()
-      {
-         gl_Position = mvp * position;
-         out_uv = uv;
-      }
-    """
-
-    video_cairo_frag = """
-       varying vec2 out_uv;
-       uniform sampler2DRect cairoSampler;
-       uniform sampler2D videoSampler;
-       void main()
-       {
-        vec4 video = texture2D (videoSampler, out_uv);
-        vec4 cairo = texture2DRect (cairoSampler, out_uv * vec2(1280, 720));
-        gl_FragColor = video - cairo + vec4(out_uv, 0, 1);
-       }
-     """
-
-    video_frag = """
-      varying vec2 out_uv;
-      uniform sampler2D videoSampler;
-      void main()
-      {
-        gl_FragColor = texture2D (videoSampler, out_uv);
-      }
-    """
-
-    cairo_frag = """
-      varying vec2 out_uv;
-      uniform sampler2DRect cairoSampler;
-      void main()
-      {
-        gl_FragColor = texture2DRect (cairoSampler, out_uv);
-      }
-    """
-
     def __init__(self, name, w, h):
         Gtk.DrawingArea.__init__(self)
         from gi.repository import GdkX11, GstVideo
@@ -163,6 +86,17 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.sink = Gst.ElementFactory.make(name, None)
         self.set_size_request(w, h)
         self.set_double_buffered(True)
+
+    def xid(self):
+        return self.get_window().get_xid()
+
+    def set_handle(self):
+        self.sink.set_window_handle(self.xid())
+
+
+class CairoGLSink(GstOverlaySink):
+    def __init__(self, w, h):
+        GstOverlaySink.__init__(self, "glimagesink", w, h)
 
         self.sink.connect("client-draw", self.draw)
         self.sink.connect("client-reshape", self.reshape)
@@ -175,23 +109,16 @@ class GstOverlaySink(Gtk.DrawingArea):
         self.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
         self.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
 
-        self.handle_x, self.handle_y = 0, 0
-
-        #from IPython import embed
-        #embed()
-
         self.gl_init = False
-        self.meshes = {}
-        self.shaders = {}
-        self.cairo_textures = {}
-        self.clicked = False
-        self.click_point = None
 
-    def xid(self):
-        return self.get_window().get_xid()
+        self.scene = Scene()
 
-    def set_handle(self):
-        self.sink.set_window_handle(self.xid())
+        self.canvas_width, self.canvas_height = w, h
+        self.aspect = w/h
+
+        self.transformation_element = None
+        self.pipeline = None
+        self.pipeline_position = 0
 
     def set_transformation_element(self, element):
         self.transformation_element = element
@@ -211,32 +138,19 @@ class GstOverlaySink(Gtk.DrawingArea):
         return True
 
     def on_button_press(self, sink, event):
-        self.clicked = True
-        self.click_point = (event.x/1280.0, event.y/720.0)
-        self.original_position = (self.handle_x, self.handle_y)
-        #print("press", event.x, event.y)
+        self.scene.on_press(event)
 
         if self.pipeline.get_state(Gst.CLOCK_TIME_NONE)[1] == Gst.State.PAUSED:
-            self.flush_seek_timer = GLib.timeout_add(90, self.flush_seek)
-            print(self.flush_seek_timer)
+            GLib.timeout_add(90, self.flush_seek)
 
     def on_button_release(self, sink, event):
-        self.clicked = False
-        #print("release", event.x, event.y)
+        self.scene.on_release(event)
 
     def on_motion(self, sink, event):
+        self.scene.on_motion(event)
 
-        if not self.click_point:
-            return
-
-        if not self.clicked:
-            return
-
-        rel_point = (2 * event.x / 1280.0 - 1, 2 * event.y / 720.0 - 1)
-        self.handle_x, self.handle_y = rel_point[0], -rel_point[1]
-
-        self.transformation_element.set_property("translation-x", 1280.0/720.0 * self.handle_x)
-        self.transformation_element.set_property("translation-y", -self.handle_y)
+        #self.transformation_element.set_property("translation-x", self.aspect * self.scene.actors["handle"].position[0])
+        #self.transformation_element.set_property("translation-y", -self.scene.actors["handle"].position[1])
 
     def init_gl(self, context, width, height):
         print("OpenGL version: %s" % glGetString(GL_VERSION).decode("utf-8"))
@@ -253,74 +167,9 @@ class GstOverlaySink(Gtk.DrawingArea):
 
         glEnable(GL_TEXTURE_RECTANGLE)
 
-        self.shaders["video"] = GstGL.GLShader.new(context)
-        self.shaders["video"].set_vertex_source(self.simple_vert)
-        self.shaders["video"].set_fragment_source(self.video_frag)
-
-        self.shaders["cairo"] = GstGL.GLShader.new(context)
-        self.shaders["cairo"].set_vertex_source(self.simple_vert)
-        self.shaders["cairo"].set_fragment_source(self.cairo_frag)
-
-        self.shaders["videocairo"] = GstGL.GLShader.new(context)
-        self.shaders["videocairo"].set_vertex_source(self.simple_vert)
-        self.shaders["videocairo"].set_fragment_source(self.video_cairo_frag)
-
-        self.meshes["plane_tri"] = Mesh(GL_TRIANGLE_STRIP)
-        self.meshes["plane_tri"].add(
-            "position", [
-                -1, 1, 0, 1,
-                1, 1, 0, 1,
-                1, -1, 0, 1,
-                -1, -1, 0, 1], 4)
-        self.meshes["plane_tri"].add(
-            "uv", [
-                0.0, 0.0,
-                1.0, 0.0,
-                1.0, 1.0,
-                0.0, 1.0], 2)
-        self.meshes["plane_tri"].set_index([0, 1, 3, 2])
-
-        self.meshes["plane_wh"] = Mesh(GL_TRIANGLE_STRIP)
-
-        """
-        self.meshes["plane_wh"].add(
-            "position", [
-                -1, 1, 0, 1,
-                1, 1, 0, 1,
-                1, -1, 0, 1,
-                -1, -1, 0, 1], 4)
-        """
-
-        halforig_w, halforig_h = width / 2.0, height / 2.0
-
-        halfplane_w, halfplane_h = 50, 50
-
-        final_w, final_h = halfplane_w / halforig_w, halfplane_h / halforig_h
-
-        self.meshes["plane_wh"].add(
-            "position", [
-                -final_w, final_h, 0, 1,
-                final_w, final_h, 0, 1,
-                final_w, -final_h, 0, 1,
-                -final_w, -final_h, 0, 1], 4)
-
-
-        width, height = 100, 100
-
-        self.meshes["plane_wh"].add(
-            "uv", [
-                0.0, 0.0,
-                width, 0.0,
-                width, height,
-                0.0, height], 2)
-        self.meshes["plane_wh"].set_index([0, 1, 3, 2])
-
-        for shader in self.shaders.values():
-            if not shader.compile():
-                exit()
+        self.scene.init_gl(context, width, height)
 
     def reshape(self, sink, context, width, height):
-
         if not self.gl_init:
             self.init_gl(context, width, height)
             self.gl_init = True
@@ -328,79 +177,11 @@ class GstOverlaySink(Gtk.DrawingArea):
         glViewport(0, 0, width, height)
 
         self.aspect = width/height
-
-        x, y, radius = 0.5, 0.5, 0.5
-
-        p = Point(x, y)
-        p.set_width(radius)
-
-        self.cairo_textures["handle"] = CairoTexture(GL_TEXTURE1, 100, 100)
-        self.cairo_textures["handle"].draw(p.draw)
-
-        self.cairo_textures["handle_clicked"] = CairoTexture(GL_TEXTURE2, 100, 100)
-        p.clicked = True
-        self.cairo_textures["handle_clicked"].draw(p.draw)
+        self.scene.reshape(width, height)
 
         return True
 
-    def draw_two_pass(self, context, texture):
-        # video pass
-        context.clear_shader()
-        glBindTexture(GL_TEXTURE_2D, 0)
-
-        glClearColor(0, 0, 0, 1)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        self.shaders["video"].use()
-        self.meshes["plane_tri"].bind(self.shaders["video"])
-
-        glBindTexture(GL_TEXTURE_2D, texture)
-        self.shaders["video"].set_uniform_1i("videoSampler", 0)
-
-        location = glGetUniformLocation(self.shaders["video"].get_program_handle(), "mvp")
-        glUniformMatrix4fv(location, 1, GL_FALSE, numpy.identity(4))
-
-        self.meshes["plane_tri"].draw()
-        self.meshes["plane_tri"].unbind()
-
-        context.clear_shader()
-
-        # cairo pass
-        self.shaders["cairo"].use()
-        self.meshes["plane_wh"].bind(self.shaders["cairo"])
-
-        if self.clicked:
-            glActiveTexture(GL_TEXTURE2)
-            glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_textures["handle_clicked"].texture_handle)
-            self.shaders["cairo"].set_uniform_1i("cairoSampler", 2)
-        else:
-            glActiveTexture(GL_TEXTURE1)
-            glBindTexture(GL_TEXTURE_RECTANGLE, self.cairo_textures["handle"].texture_handle)
-            self.shaders["cairo"].set_uniform_1i("cairoSampler", 1)
-
-        model_matrix = Graphene.Matrix.alloc()
-
-        translation_vector = Graphene.Point3D.alloc()
-        translation_vector.init(self.handle_x, self.handle_y, 0)
-
-        model_matrix.init_translate(translation_vector)
-
-        location = glGetUniformLocation(self.shaders["cairo"].get_program_handle(), "mvp")
-        #glUniformMatrix4fv(location, 1, GL_FALSE, numpy.identity(4))
-        glUniformMatrix4fv(location, 1, GL_FALSE, matrix_to_array(model_matrix))
-
-        self.meshes["plane_wh"].draw()
-        self.meshes["plane_wh"].unbind()
-
-        context.clear_shader()
-
-    def draw(self, sink, context, texture, width, height):
-        if len(self.shaders) < 1:
-            return
-
-        if len(self.cairo_textures) < 1:
-            return
-
-        self.draw_two_pass(context, texture)
+    def draw(self, sink, context, video_texture, width, height):
+        self.scene.draw(context, video_texture)
 
         return True

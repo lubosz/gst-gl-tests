@@ -46,7 +46,7 @@ class GstOpenGLEditor():
         src = Gst.ElementFactory.make("uridecodebin", None)
         src.set_property("uri", video_uri)
 
-        sink = GstOverlaySink("glimagesink", width, height)
+        sink = CairoGLSink(width, height)
 
         # caps
         #caps = Gst.Caps.from_string("video/x-raw, width=%d, height=%d" % (width, height))
