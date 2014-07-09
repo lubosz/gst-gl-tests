@@ -7,39 +7,63 @@ class Slider(Gtk.Box):
     def __init__(self, sliderbox, property, min, max, step, init):
         Gtk.Box.__init__(self)
 
-        label = Gtk.Label(property)
-        scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, min, max, step)
+        self.init = init
 
-        scale.set_property("expand", True)
-        scale.set_value(init)
-        scale.connect("value-changed", sliderbox.value_changed, property)
+        label = Gtk.Label(property)
+        self.scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, min, max, step)
+
+        self.scale.set_property("expand", True)
+        self.scale.set_value(init)
+        self.scale.connect("value-changed", sliderbox.value_changed, property)
 
         self.set_orientation(Gtk.Orientation.HORIZONTAL)
 
         self.add(label)
-        self.add(scale)
+        self.add(self.scale)
+
+    def reset(self):
+        self.scale.set_value(self.init)
 
 
-class Transformation2DSliderBox(Gtk.Box):
+class SliderBox(Gtk.Box):
+    def __init__(self, element):
+        Gtk.Box.__init__(self)
+
+        for slider in self.sliders:
+            self.add(slider)
+
+        self.set_orientation(Gtk.Orientation.VERTICAL)
+        self.set_size_request(300, 300)
+
+        image = Gtk.Image.new_from_stock("gtk-clear", Gtk.IconSize.BUTTON)
+        button = Gtk.Button()
+        button.set_image(image)
+        button.connect("clicked", self.reset_values)
+
+        self.add(button)
+
+        self.element = element
+
+    def reset_values(self, button):
+        for slider in self.sliders:
+            slider.reset()
+
+
+class Transformation2DSliderBox(SliderBox):
     def value_changed(self, scale, property):
         self.element.set_property(property, scale.get_value())
         self.scene.reposition(self.build_mvp())
 
     def __init__(self, element, scene):
-        Gtk.Box.__init__(self)
+        self.sliders = [
+            Slider(self, "rotation-z", -720, 720, 1, 0),
+            Slider(self, "translation-x", -5, 5, 0.01, 0),
+            Slider(self, "translation-y", -5, 5, 0.01, 0),
+            Slider(self, "scale-x", 0, 4, 0.1, 1),
+            Slider(self, "scale-y", 0, 4, 0.1, 1)]
 
-        self.set_orientation(Gtk.Orientation.VERTICAL)
-        self.add(Slider(self, "rotation-z", -720, 720, 1, 0))
+        SliderBox.__init__(self, element)
 
-        self.add(Slider(self, "translation-x", -5, 5, 0.01, 0))
-        self.add(Slider(self, "translation-y", -5, 5, 0.01, 0))
-
-        self.add(Slider(self, "scale-x", 0, 4, 0.1, 1))
-        self.add(Slider(self, "scale-y", 0, 4, 0.1, 1))
-
-        self.set_size_request(300, 300)
-
-        self.element = element
         self.scene = scene
 
     def zrotation(self):
@@ -96,7 +120,7 @@ class Transformation2DSliderBox(Gtk.Box):
         return mvp
 
 
-class Transformation3DSliderBox(Gtk.Box):
+class Transformation3DSliderBox(SliderBox):
     def value_changed(self, scale, property):
         self.element.set_property(property, scale.get_value())
 
@@ -105,24 +129,20 @@ class Transformation3DSliderBox(Gtk.Box):
         element.set_property("ortho", check.get_active())
 
     def __init__(self, element):
-        Gtk.Box.__init__(self)
 
-        self.set_orientation(Gtk.Orientation.VERTICAL)
-        self.add(Slider(self, "rotation-x", -720, 720, 1, 0))
-        self.add(Slider(self, "rotation-y", -720, 720, 1, 0))
-        self.add(Slider(self, "rotation-z", -720, 720, 1, 0))
+        self.sliders = [
+            Slider(self, "rotation-x", -720, 720, 1, 0),
+            Slider(self, "rotation-y", -720, 720, 1, 0),
+            Slider(self, "rotation-z", -720, 720, 1, 0),
+            Slider(self, "translation-x", -5, 5, 0.01, 0),
+            Slider(self, "translation-y", -5, 5, 0.01, 0),
+            Slider(self, "translation-z", -5, 5, 0.01, 0),
+            Slider(self, "scale-x", 0, 4, 0.1, 1),
+            Slider(self, "scale-y", 0, 4, 0.1, 1),
+            Slider(self, "fov", 0, 180, 0.5, 90)]
 
-        self.add(Slider(self, "translation-x", -5, 5, 0.01, 0))
-        self.add(Slider(self, "translation-y", -5, 5, 0.01, 0))
-        self.add(Slider(self, "translation-z", -5, 5, 0.01, 0))
-
-        self.add(Slider(self, "scale-x", 0, 4, 0.1, 1))
-        self.add(Slider(self, "scale-y", 0, 4, 0.1, 1))
-
-        self.add(Slider(self, "fovy", 0, 180, 0.5, 90))
         check = Gtk.CheckButton.new_with_label("Orthographic Projection")
         check.connect("toggled", self.check_cb, element)
         self.add(check)
-        self.set_size_request(300, 300)
 
-        self.element = element
+        SliderBox.__init__(self, element)
