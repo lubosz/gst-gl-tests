@@ -1,6 +1,6 @@
 from gi.repository import Clutter
 import cairo
-
+import numpy
 from math import pi
 
 from OpenGL.GL import *
@@ -160,8 +160,6 @@ class BoxGraphic(Graphic):
         self.shader.use()
         self.mesh.bind(self.shader)
 
-        import numpy
-
         self.handle_positions = []
 
         for h in sorted(handles):
@@ -201,5 +199,6 @@ class BoxGraphic(Graphic):
         cr.set_line_join(cairo.LINE_JOIN_BEVEL)
 
         cr.stroke()
+
 
         cr.restore()

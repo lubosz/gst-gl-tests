@@ -1,10 +1,10 @@
 __author__ = 'Lubosz Sarnecki'
 
-from gi.repository import Graphene
+from gi.repository import Graphene, Gdk
 import numpy
 import math
 from gst_opengl_editor.graphics import *
-
+from numpy import array
 
 def matrix_to_array(m):
     result = []
@@ -23,11 +23,51 @@ class Scene():
         self.width, self.height = 0, 0
         self.init = False
         self.focused_actor = None
+        self.box_actor = BoxActor()
+        self.dragged = False
+        self.selected = False
+        self.clicked_outside = False
+
+    def unselect(self):
+        self.selected = False
+        self.set_cursor(Gdk.CursorType.ARROW) # default
 
     def on_press(self, event):
-        for actor in self.handles.values():
-            if actor.is_clicked(self.relative_position(event)):
-                self.focused_actor = actor
+
+        #from IPython import embed
+        #embed()
+
+        #print (event.get_button())
+
+        if event.get_button()[1] == 3:
+            # Right click
+            self.unselect()
+        elif event.get_button()[1] == 1:
+            # Left click
+
+            self.focused_actor = None
+
+            for actor in self.handles.values():
+                if actor.is_clicked(self.relative_position(event)):
+                    self.focused_actor = actor
+                    self.click_point = self.relative_position(event)
+
+            if self.box_actor.is_clicked(self.relative_position(event), self.handles):
+                self.dragged = True
+                self.selected = True
+
+                pos = self.relative_position(event)
+
+                self.oldpos = ((self.slider_box.sliders["translation-x"].get() - pos[0] * self.aspect()),
+                               self.slider_box.sliders["translation-y"].get() + pos[1])
+            elif self.focused_actor:
+                pass
+            else:
+                #clicked outside of box
+                self.clicked_outside = True
+
+                self.oldrot = self.slider_box.sliders["rotation-z"].get() - self.get_rotation(event)
+
 
     def relative_position(self, event):
         # between 0 and 1
@@ -43,16 +83,69 @@ class Scene():
             return 1
         return self.width / self.height
 
-    def on_motion(self, sink, event):
-        if not self.focused_actor:
-            return
+    def set_cursor(self, type):
+        display = Gdk.Display.get_default()
+        cursor = Gdk.Cursor.new_for_display(display, type)
+        self.window.get_window().set_cursor(cursor)
 
-        self.focused_actor.position = self.relative_position(event)
-        #self.transformation_element.set_property("translation-x", self.aspect * self.scene.actors["handle"].position[0])
-        #self.transformation_element.set_property("translation-y", -self.scene.actors["handle"].position[1])
+    def get_rotation(self, event):
+        center = self.box_actor.get_center(self.handles)
+        click = array(self.relative_position(event)) * array([self.aspect(), 1])
+
+        distance = click - center
+
+        axis = array([1, 0])
+
+        rot = math.atan2(distance[1], distance[0]) \
+              -math.atan2(axis[1], axis[0])
+
+        return -math.degrees(rot)
+
+    def on_motion(self, sink, event):
+        if self.selected:
+            if self.box_actor.is_clicked(self.relative_position(event), self.handles):
+                self.set_cursor(Gdk.CursorType.DOT) # inside box
+            else:
+                self.set_cursor(Gdk.CursorType.EXCHANGE) # rotate
+
+            #self.set_cursor(Gdk.CursorType.FLEUR) # drag
+            #self.set_cursor(Gdk.CursorType.EXCHANGE) # rotate
+            #self.set_cursor(Gdk.CursorType.DOT) # inside box
+            #self.set_cursor(Gdk.CursorType.HEART)
+            #self.set_cursor(Gdk.CursorType.TOP_LEFT_CORNER)
+            #self.set_cursor(Gdk.CursorType.ARROW) # default
+
+        if self.focused_actor:
+            #self.focused_actor.position = self.relative_position(event)
+
+            scale_x = self.slider_box.sliders["scale-x"]
+            scale_y = self.slider_box.sliders["scale-y"]
+
+            center = self.box_actor.get_center(self.handles)
+
+            distance = center - array(self.relative_position(event))
+
+            length = numpy.sqrt(distance.dot(distance))
+
+            scale_x.set(length / 1.4)
+            scale_y.set(length / 1.4)
+
+        elif self.dragged:
+            pos = array(self.relative_position(event))
+
+            x = self.slider_box.sliders["translation-x"]
+            y = self.slider_box.sliders["translation-y"]
+
+            x.set((self.oldpos[0] + pos[0] * self.aspect()))
+            y.set(self.oldpos[1] - pos[1])
+        elif self.clicked_outside:
+            rotation = self.slider_box.sliders["rotation-z"]
+            rotation.set((self.oldrot + self.get_rotation(event)) % 360)
 
     def on_release(self, sink, event):
         self.focused_actor = None
+        self.dragged = False
+        self.clicked_outside = False
 
         for actor in self.handles.values():
             actor.clicked = False
@@ -121,10 +214,26 @@ class Actor():
 class BoxActor(Actor):
     def __init__(self):
         Actor.__init__(self)
-        self.handles = []
 
-    def is_clicked(self, click):
-        pass
+    def is_clicked(self, click, handles):
+
+        from shapely.geometry import Point
+        from shapely.geometry.polygon import Polygon
+
+        point = Point(*click)
+        polygon = Polygon([handles["1BL"].position,
+                           handles["2TL"].position,
+                           handles["3TR"].position,
+                           handles["4BR"].position])
+
+        return polygon.contains(point)
+
+    def get_center(self, handles):
+        diagonal = array(handles["1BL"].position) - array(handles["3TR"].position)
+
+        center = array(handles["3TR"].position) + diagonal / 2.0
+
+        return center
 
 
 class TransformScene(Scene):
@@ -172,7 +281,8 @@ class TransformScene(Scene):
         self.graphics["video"].draw(video_texture, numpy.identity(4))
         context.clear_shader()
 
-        self.graphics["box"].draw(self.handles)
-        self.graphics["handle"].draw_actors(self.handles.values())
+        if self.selected:
+            self.graphics["box"].draw(self.handles)
+            self.graphics["handle"].draw_actors(self.handles.values())
 
         return True

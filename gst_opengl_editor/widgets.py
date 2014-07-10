@@ -21,15 +21,29 @@ class Slider(Gtk.Box):
         self.add(label)
         self.add(self.scale)
 
+        self.name = property
+
+    def get(self):
+        return self.scale.get_value()
+
+    def set(self, value):
+        #print(self.name, value)
+        self.scale.set_value(value)
+
     def reset(self):
         self.scale.set_value(self.init)
 
 
 class SliderBox(Gtk.Box):
-    def __init__(self, element):
+
+    sliders = {}
+
+    def __init__(self, element, setup):
         Gtk.Box.__init__(self)
 
-        for slider in self.sliders:
+        for name, values in setup.items():
+            slider = Slider(self, name, *values)
+            self.sliders[name] = slider
             self.add(slider)
 
         self.set_orientation(Gtk.Orientation.VERTICAL)
@@ -45,7 +59,7 @@ class SliderBox(Gtk.Box):
         self.element = element
 
     def reset_values(self, button):
-        for slider in self.sliders:
+        for slider in self.sliders.values():
             slider.reset()
 
 
@@ -55,14 +69,14 @@ class Transformation2DSliderBox(SliderBox):
         self.scene.reposition(self.build_mvp())
 
     def __init__(self, element, scene):
-        self.sliders = [
-            Slider(self, "rotation-z", -720, 720, 1, 0),
-            Slider(self, "translation-x", -5, 5, 0.01, 0),
-            Slider(self, "translation-y", -5, 5, 0.01, 0),
-            Slider(self, "scale-x", 0, 4, 0.1, 1),
-            Slider(self, "scale-y", 0, 4, 0.1, 1)]
-
-        SliderBox.__init__(self, element)
+        setup = {
+            "rotation-z": (-720, 720, 1, 0),
+            "translation-x": (-5, 5, 0.01, 0),
+            "translation-y": (-5, 5, 0.01, 0),
+            "scale-x": (0, 4, 0.1, 1),
+            "scale-y": (0, 4, 0.1, 1)
+        }
+        SliderBox.__init__(self, element, setup)
 
         self.scene = scene
 

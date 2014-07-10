@@ -82,6 +82,9 @@ class GstOpenGLEditor():
         slider_box = Transformation2DSliderBox(transform, sink.scene)
         #slider_box = Transformation3DSliderBox(transform)
 
+        sink.scene.slider_box = slider_box
+        sink.scene.window = window
+
         box.add(slider_box)
         box.add(sink)
 
