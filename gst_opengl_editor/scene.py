@@ -23,49 +23,7 @@ class Scene():
         self.graphics = {}
         self.width, self.height = 0, 0
         self.init = False
-        self.focused_actor = None
-        self.box_actor = BoxActor()
-        self.dragged = False
-        self.selected = False
-        self.clicked_outside = False
-
-    def deselect(self):
-        self.selected = False
-        self.set_cursor(Gdk.CursorType.ARROW) # default
-
-    def on_press(self, event):
-
-
-        if event.get_button()[1] == 3:
-            # Right click
-            self.deselect()
-        elif event.get_button()[1] == 1:
-            # Left click
-
-            self.focused_actor = None
-            self.some_button_pressed = True
-
-            for actor in self.handles.values():
-                if actor.is_clicked(self.relative_position(event)):
-                    self.focused_actor = actor
-                    self.click_point = self.relative_position(event)
-
-            if self.box_actor.is_clicked(self.relative_position(event), self.handles):
-                self.dragged = True
-                self.selected = True
-
-                pos = self.relative_position(event)
-
-                self.oldpos = ((self.slider_box.sliders["translation-x"].get() - pos[0] * self.aspect()),
-                               self.slider_box.sliders["translation-y"].get() + pos[1])
-            elif self.focused_actor:
-                pass
-            else:
-                #clicked outside of box
-                self.clicked_outside = True
-
-                self.oldrot = self.slider_box.sliders["rotation-z"].get() - self.get_rotation(event)
-
+        self.window = None
 
     def relative_position(self, event):
         # between 0 and 1
@@ -86,117 +44,23 @@ class Scene():
         cursor = Gdk.Cursor.new_for_display(display, type)
         self.window.get_window().set_cursor(cursor)
 
-    def get_rotation(self, event):
-        center = self.box_actor.get_center(self.handles) * array([self.aspect(), 1])
-        click = array(self.relative_position(event)) * array([self.aspect(), 1])
-
-        distance = click - center
-        distance /= numpy.linalg.norm(distance)
-
-        axis = array([1, 0])
-
-        rot = math.atan2(distance[1], distance[0])\
-              - math.atan2(axis[1], axis[0])
-
-        return math.degrees(-rot)
-
-    def on_motion(self, sink, event):
-
-        if not self.selected:
-            return
-
-        #cursor change only when not dragging
-        if not self.some_button_pressed:
-            for actor in self.handles.values():
-                if actor.is_clicked(self.relative_position(event)):
-
-                    rot = self.get_rotation(event) % 360
-                    if rot < 90:
-                        self.set_cursor(Gdk.CursorType.BOTTOM_RIGHT_CORNER)
-                    elif rot < 180:
-                        self.set_cursor(Gdk.CursorType.BOTTOM_LEFT_CORNER)
-                    elif rot < 270:
-                        self.set_cursor(Gdk.CursorType.TOP_LEFT_CORNER)
-                    else:
-                        self.set_cursor(Gdk.CursorType.TOP_RIGHT_CORNER)
-
-                    # dont check box if we have a hit
-                    return
-
-            if self.box_actor.is_clicked(self.relative_position(event), self.handles):
-                self.set_cursor(Gdk.CursorType.PLUS) # inside box
-            else:
-                self.set_cursor(Gdk.CursorType.EXCHANGE) # rotate
-
-
-
-
-        if self.focused_actor:
-            #self.focused_actor.position = self.relative_position(event)
-
-            scale_x = self.slider_box.sliders["scale-x"]
-            scale_y = self.slider_box.sliders["scale-y"]
-
-            center = self.box_actor.get_center(self.handles)
-
-            distance = center - array(self.relative_position(event))
-
-            length = numpy.sqrt(distance.dot(distance))
-
-            scale_x.set(length / 1.4)
-            scale_y.set(length / 1.4)
-
-        elif self.dragged:
-            pos = array(self.relative_position(event))
-
-            self.set_cursor(Gdk.CursorType.FLEUR) # drag
-
-            x = self.slider_box.sliders["translation-x"]
-            y = self.slider_box.sliders["translation-y"]
-
-            x.set((self.oldpos[0] + pos[0] * self.aspect()))
-            y.set(self.oldpos[1] - pos[1])
-        elif self.clicked_outside:
-            rotation = self.slider_box.sliders["rotation-z"]
-            rotation.set((self.oldrot + self.get_rotation(event)) % 360)
-
     def on_scroll(self, sink, event):
         print("deltas", event.get_scroll_deltas())
         print("direction", event.get_scroll_direction())
 
-    def on_release(self, sink, event):
-        self.focused_actor = None
-        self.dragged = False
-        self.clicked_outside = False
-        self.some_button_pressed = False
-
-        for actor in self.handles.values():
-            actor.clicked = False
-
     def reshape(self, sink, context, width, height):
         self.width, self.height = width, height
-
         if not self.init:
             self.init_gl(context)
             self.init = True
-
         glViewport(0, 0, width, height)
-
         return True
 
     def init_gl(self, context):
-        print("OpenGL version: %s" % glGetString(GL_VERSION).decode("utf-8"))
-        print("OpenGL vendor: %s" % glGetString(GL_VENDOR).decode("utf-8"))
-        print("OpenGL renderer: %s" % glGetString(GL_RENDERER).decode("utf-8"))
-
-        print("Version: %d.%d" % (glGetIntegerv(GL_MAJOR_VERSION),
-                                  glGetIntegerv(GL_MINOR_VERSION)))
-
         glClearColor(0.0, 0.0, 0.0, 0.0)
         glDisable(GL_DEPTH_TEST)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
         glEnable(GL_TEXTURE_RECTANGLE)
 
 
@@ -273,6 +137,17 @@ class TransformScene(Scene):
         self.graphics["video"] = VideoGraphic()
         self.graphics["box"] = BoxGraphic(1280, 720, self.handles.values())
 
+        self.focused_actor = None
+        self.box_actor = BoxActor()
+        self.dragged = False
+        self.selected = False
+        self.clicked_outside = False
+        self.slider_box = None
+
+    def deselect(self):
+        self.selected = False
+        self.set_cursor(Gdk.CursorType.ARROW) # default
+
     def init_gl(self, context):
         Scene.init_gl(self, context)
 
@@ -309,3 +184,114 @@ class TransformScene(Scene):
             self.graphics["handle"].draw_actors(self.handles.values())
 
         return True
+
+    def get_rotation(self, event):
+        center = self.box_actor.get_center(self.handles) * array([self.aspect(), 1])
+        click = array(self.relative_position(event)) * array([self.aspect(), 1])
+
+        distance = click - center
+        distance /= numpy.linalg.norm(distance)
+
+        axis = array([1, 0])
+
+        rot = math.atan2(distance[1], distance[0])\
+              - math.atan2(axis[1], axis[0])
+
+        return math.degrees(-rot)
+
+    def on_motion(self, sink, event):
+
+        if not self.selected:
+            return
+
+        #cursor change only when not dragging
+        if not self.some_button_pressed:
+            for actor in self.handles.values():
+                if actor.is_clicked(self.relative_position(event)):
+
+                    rot = self.get_rotation(event) % 360
+                    if rot < 90:
+                        self.set_cursor(Gdk.CursorType.BOTTOM_RIGHT_CORNER)
+                    elif rot < 180:
+                        self.set_cursor(Gdk.CursorType.BOTTOM_LEFT_CORNER)
+                    elif rot < 270:
+                        self.set_cursor(Gdk.CursorType.TOP_LEFT_CORNER)
+                    else:
+                        self.set_cursor(Gdk.CursorType.TOP_RIGHT_CORNER)
+
+                    # dont check box if we have a hit
+                    return
+
+            if self.box_actor.is_clicked(self.relative_position(event), self.handles):
+                self.set_cursor(Gdk.CursorType.PLUS) # inside box
+            else:
+                self.set_cursor(Gdk.CursorType.EXCHANGE) # rotate
+
+        if self.focused_actor:
+            #self.focused_actor.position = self.relative_position(event)
+
+            scale_x = self.slider_box.sliders["scale-x"]
+            scale_y = self.slider_box.sliders["scale-y"]
+
+            center = self.box_actor.get_center(self.handles)
+
+            distance = center - array(self.relative_position(event))
+
+            length = numpy.sqrt(distance.dot(distance))
+
+            scale_x.set(length / 1.4)
+            scale_y.set(length / 1.4)
+
+        elif self.dragged:
+            pos = array(self.relative_position(event))
+
+            self.set_cursor(Gdk.CursorType.FLEUR) # drag
+
+            x = self.slider_box.sliders["translation-x"]
+            y = self.slider_box.sliders["translation-y"]
+
+            x.set((self.oldpos[0] + pos[0] * self.aspect()))
+            y.set(self.oldpos[1] - pos[1])
+        elif self.clicked_outside:
+            rotation = self.slider_box.sliders["rotation-z"]
+            rotation.set((self.oldrot + self.get_rotation(event)) % 360)
+
+    def on_press(self, event):
+        if event.get_button()[1] == 3:
+            # Right click
+            self.deselect()
+        elif event.get_button()[1] == 1:
+            # Left click
+
+            self.focused_actor = None
+            self.some_button_pressed = True
+
+            for actor in self.handles.values():
+                if actor.is_clicked(self.relative_position(event)):
+                    self.focused_actor = actor
+                    self.click_point = self.relative_position(event)
+
+            if self.box_actor.is_clicked(self.relative_position(event), self.handles):
+                self.dragged = True
+                self.selected = True
+
+                pos = self.relative_position(event)
+
+                self.oldpos = ((self.slider_box.sliders["translation-x"].get() - pos[0] * self.aspect()),
+                               self.slider_box.sliders["translation-y"].get() + pos[1])
+            elif self.focused_actor:
+                pass
+            else:
+                #clicked outside of box
+                self.clicked_outside = True
+
+                self.oldrot = self.slider_box.sliders["rotation-z"].get() - self.get_rotation(event)
+
+    def on_release(self, sink, event):
+        self.focused_actor = None
+        self.dragged = False
+        self.clicked_outside = False
+        self.some_button_pressed = False
+
+        for actor in self.handles.values():
+            actor.clicked = False
