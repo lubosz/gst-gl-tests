@@ -41,8 +41,8 @@ class SliderBox(Gtk.Box):
     def __init__(self, element, setup):
         Gtk.Box.__init__(self)
 
-        for name, values in setup.items():
-            slider = Slider(self, name, *values)
+        for name in sorted(setup):
+            slider = Slider(self, name, *setup[name])
             self.sliders[name] = slider
             self.add(slider)
 

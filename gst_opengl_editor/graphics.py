@@ -195,7 +195,7 @@ class BoxGraphic(Graphic):
 
         cr.identity_matrix()
 
-        cr.set_line_width(32)
+        cr.set_line_width(16)
         cr.set_line_join(cairo.LINE_JOIN_BEVEL)
 
         cr.stroke()
