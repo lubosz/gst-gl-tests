@@ -82,12 +82,10 @@ class HandleActor():
 
     def reposition(self, matrix, aspect):
             vector = numpy.array([self.initital_position[0] * math.pi,
-                                  -self.initital_position[1],
-                                  0, 1])
+                                  self.initital_position[1], 0, 1])
             vector_transformed = numpy.dot(vector, matrix)
 
-            self.position = (vector_transformed[0] / aspect,
-                               -vector_transformed[1])
+            self.position = (vector_transformed[0] / aspect, -vector_transformed[1])
 
     def model_matrix(self):
         model_matrix = Graphene.Matrix.alloc()
@@ -202,8 +200,7 @@ class TransformScene(Scene):
 
         axis = array([1, 0])
 
-        rot = math.atan2(distance[1], distance[0]) \
-              - math.atan2(axis[1], axis[0])
+        rot = math.atan2(distance[1], distance[0]) - math.atan2(axis[1], axis[0])
 
         return math.degrees(-rot)
 
