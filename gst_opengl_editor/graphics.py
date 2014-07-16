@@ -178,7 +178,7 @@ class BoxGraphic(Graphic):
 
     def draw_cairo(self, cr, w, h):
         cr.save()
-        cr.scale(w, h)
+        #cr.scale(w, h)
 
         # clear background
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.0)
@@ -198,7 +198,7 @@ class BoxGraphic(Graphic):
 
         cr.line_to(*self.convert_range(self.handle_positions[0]))
 
-        cr.identity_matrix()
+        #cr.identity_matrix()
 
         cr.set_line_width(16)
         #cr.set_line_width(000.1)
