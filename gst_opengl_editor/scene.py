@@ -44,10 +44,6 @@ class Scene():
         cursor = Gdk.Cursor.new_for_display(display, type)
         self.window.get_window().set_cursor(cursor)
 
-    def on_scroll(self, sink, event):
-        print("deltas", event.get_scroll_deltas())
-        print("direction", event.get_scroll_direction())
-
     def reshape(self, sink, context, width, height):
         self.width, self.height = width, height
         if not self.init:
@@ -162,6 +158,27 @@ class TransformScene(Scene):
         self.slider_box = None
         self.action = None
 
+        self.zoom = 1.0
+        self.set_zoom_matrix(self.zoom)
+
+    def on_scroll(self, sink, event):
+        deltas = event.get_scroll_deltas()
+        v = self.zoom_slider.get_value()
+        if deltas[0]:
+            v -= deltas[2] * 0.1 * self.zoom
+        self.zoom_slider.set_value(v)
+
+
+    def set_zoom_matrix(self, zoom):
+        self.zoom_matrix = Graphene.Matrix.alloc()
+        self.zoom_matrix.init_scale(zoom, zoom, 1.0)
+
+    def set_zoom(self, scale):
+        self.zoom = scale.get_value()
+        self.set_zoom_matrix(self.zoom)
+
+        self.reposition()
+
     def deselect(self):
         self.selected = False
         # default
@@ -176,7 +193,10 @@ class TransformScene(Scene):
 
         self.init = True
 
-    def reposition(self, matrix):
+    def reposition(self):
+
+        matrix = numpy.dot(self.slider_box.mvp(), matrix_to_array(self.zoom_matrix))
+
         distance1 = self.corner_handles["1BL"].distance_to(self.edge_handles["bottom"])
         distance2 = self.corner_handles["2TL"].distance_to(self.edge_handles["left"])
 
@@ -198,7 +218,9 @@ class TransformScene(Scene):
         glClearColor(0, 0, 0, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        self.graphics["video"].draw(video_texture, numpy.identity(4))
+
+
+        self.graphics["video"].draw(video_texture, matrix_to_array(self.zoom_matrix))
         context.clear_shader()
 
         if self.selected:
@@ -330,6 +352,7 @@ class TransformScene(Scene):
 
         for actor in self.edge_handles.values():
             if actor.is_clicked(self.relative_position(event)):
+                # rotate by 45°, so the detection is not axis aligned
                 rot = (self.get_rotation(event) - 45) % 360
                 for cursor_rot in sorted(resize_cursors_edge):
                     if rot < cursor_rot:

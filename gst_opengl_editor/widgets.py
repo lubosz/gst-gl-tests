@@ -13,6 +13,7 @@ class Slider(Gtk.Box):
 
         self.scale.set_property("expand", True)
         self.scale.set_value(init)
+        self.scale.add_mark(init, Gtk.PositionType.RIGHT)
         self.scale.connect("value-changed", sliderbox.value_changed, property)
 
         self.set_orientation(Gtk.Orientation.HORIZONTAL)
@@ -64,7 +65,7 @@ class SliderBox(Gtk.Box):
 class Transformation2DSliderBox(SliderBox):
     def value_changed(self, scale, property):
         self.element.set_property(property, scale.get_value())
-        self.scene.reposition(self.mvp())
+        self.scene.reposition()
 
     def __init__(self, element, scene):
         setup = {

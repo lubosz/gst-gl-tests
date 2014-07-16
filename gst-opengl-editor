@@ -89,6 +89,22 @@ class GstOpenGLEditor():
         box.add(slider_box)
         box.add(sink)
 
+        self.zoom_slider = Gtk.Scale.new_with_range(
+            Gtk.Orientation.VERTICAL, 0.1, 10.0, 0.1)
+        self.zoom_slider.set_property("expand", True)
+        self.zoom_slider.set_value(1)
+        self.zoom_slider.set_has_origin(False)
+
+        self.zoom_slider.add_mark(1.0, Gtk.PositionType.RIGHT)
+
+        self.zoom_slider.connect("value-changed", sink.scene.set_zoom)
+
+        sink.scene.zoom_slider = self.zoom_slider
+
+
+
+        box.add(self.zoom_slider)
+
         outer_box.add(box)
 
         pause_button = Gtk.Button()
