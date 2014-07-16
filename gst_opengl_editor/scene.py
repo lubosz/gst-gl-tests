@@ -86,11 +86,11 @@ class HandleActor():
         return hovered
 
     def reposition(self, matrix, aspect):
-            vector = numpy.array([self.initital_position[0] * math.pi,
-                                  -self.initital_position[1], 0, 1])
+            vector = numpy.array([self.initital_position[0] * aspect,
+                                  self.initital_position[1], 0, 1])
             vector_transformed = numpy.dot(vector, matrix)
 
-            self.position = (vector_transformed[0] / aspect, -vector_transformed[1])
+            self.position = (vector_transformed[0], -vector_transformed[1])
 
     def distance_to(self, actor):
         distance = array(self.position) - array(actor.position)
