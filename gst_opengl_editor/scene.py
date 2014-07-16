@@ -244,27 +244,24 @@ class TransformScene(Scene):
 
     def scale_width(self, event):
         scale_y = self.slider_box.sliders["scale-y"]
-        center = self.box_actor.get_center(self.corner_handles)
-        distance = center - array(self.relative_position(event))
-        length = numpy.sqrt(distance.dot(distance))
-        scale_y.set(length)
+        scale_y.set(self.center_distance(event))
 
     def scale_height(self, event):
         scale_x = self.slider_box.sliders["scale-x"]
+        scale_x.set(self.center_distance(event))
+
+    def center_distance(self, event):
         center = self.box_actor.get_center(self.corner_handles)
         distance = center - array(self.relative_position(event))
-        length = numpy.sqrt(distance.dot(distance))
-        scale_x.set(length)
+        return numpy.sqrt(distance.dot(distance)) / self.zoom
 
     def scale_keep_aspect(self, event):
         old_aspect = self.old_scale[0] / self.old_scale[1]
         scale_x = self.slider_box.sliders["scale-x"]
         scale_y = self.slider_box.sliders["scale-y"]
-        center = self.box_actor.get_center(self.corner_handles)
-        distance = center - array(self.relative_position(event))
-        length = numpy.sqrt(distance.dot(distance))
-        scale_x.set(old_aspect * length / math.sqrt(2))
-        scale_y.set(length / math.sqrt(2))
+        distance = self.center_distance(event)
+        scale_x.set(old_aspect * distance / math.sqrt(2))
+        scale_y.set(distance / math.sqrt(2))
 
     def rotate(self, event):
         rotation = self.slider_box.sliders["rotation-z"]
@@ -279,8 +276,15 @@ class TransformScene(Scene):
         x = self.slider_box.sliders["translation-x"]
         y = self.slider_box.sliders["translation-y"]
 
-        x.set((self.oldpos[0] + pos[0] * self.aspect()))
-        y.set(self.oldpos[1] - pos[1])
+        oldpos = array(self.oldpos)
+
+        translation = array([pos[0] * self.aspect(),
+                             - pos[1]])
+
+        translation /= self.zoom
+
+        x.set(oldpos[0] + translation[0])
+        y.set(oldpos[1] + translation[1])
 
     def on_press(self, event):
         # Right click
@@ -302,8 +306,8 @@ class TransformScene(Scene):
 
                 pos = self.relative_position(event)
 
-                self.oldpos = ((self.slider_box.sliders["translation-x"].get() - pos[0] * self.aspect()),
-                               self.slider_box.sliders["translation-y"].get() + pos[1])
+                self.oldpos = ((self.slider_box.sliders["translation-x"].get() - pos[0] / self.zoom * self.aspect()),
+                               self.slider_box.sliders["translation-y"].get() + pos[1] / self.zoom)
             else:
                 #clicked outside of box
                 self.action = self.rotate
