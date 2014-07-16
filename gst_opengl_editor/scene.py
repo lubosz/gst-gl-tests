@@ -64,7 +64,7 @@ class Scene():
         glEnable(GL_TEXTURE_RECTANGLE)
 
 
-class Actor():
+class HandleActor():
     def __init__(self, drag, x=0, y=0):
         self.position = (x, y)
         self.clicked = False
@@ -100,9 +100,9 @@ class Actor():
         return matrix_to_array(model_matrix)
 
 
-class BoxActor(Actor):
+class BoxActor():
     def __init__(self, drag):
-        Actor.__init__(self, drag)
+        self.drag = drag
 
     def is_clicked(self, click, handles):
 
@@ -130,16 +130,16 @@ class TransformScene(Scene):
         Scene.__init__(self)
 
         self.corner_handles = {
-            "1BL": Actor(self.scale_keep_aspect, -1, -1),
-            "2TL": Actor(self.scale_keep_aspect, -1, 1),
-            "3TR": Actor(self.scale_keep_aspect, 1, 1),
-            "4BR": Actor(self.scale_keep_aspect, 1, -1)}
+            "1BL": HandleActor(self.scale_keep_aspect, -1, -1),
+            "2TL": HandleActor(self.scale_keep_aspect, -1, 1),
+            "3TR": HandleActor(self.scale_keep_aspect, 1, 1),
+            "4BR": HandleActor(self.scale_keep_aspect, 1, -1)}
 
         self.edge_handles = {
-            "left": Actor(self.scale_height, -1, 0),
-            "right": Actor(self.scale_height, 1, 0),
-            "top": Actor(self.scale_width, 0, 1),
-            "bottom": Actor(self.scale_width, 0, -1)}
+            "left": HandleActor(self.scale_height, -1, 0),
+            "right": HandleActor(self.scale_height, 1, 0),
+            "top": HandleActor(self.scale_width, 0, 1),
+            "bottom": HandleActor(self.scale_width, 0, -1)}
 
         self.graphics["handle"] = HandleGraphic(100, 100)
         self.graphics["video"] = VideoGraphic()
