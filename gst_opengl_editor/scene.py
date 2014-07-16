@@ -298,46 +298,47 @@ class TransformScene(Scene):
         self.focused_actor = None
         self.action = self.on_hover
 
+        self.set_cursor(Gdk.CursorType.ARROW)
+
         for actor in self.handles:
             actor.clicked = False
 
     # cursor stuff
     def on_hover(self, event):
+
+        resize_cursors = {
+            90: Gdk.CursorType.BOTTOM_RIGHT_CORNER,
+            180: Gdk.CursorType.BOTTOM_LEFT_CORNER,
+            270: Gdk.CursorType.TOP_LEFT_CORNER,
+            360: Gdk.CursorType.TOP_RIGHT_CORNER
+        }
+
         for actor in self.corner_handles.values():
             if actor.is_clicked(self.relative_position(event)):
-
                 rot = self.get_rotation(event) % 360
-                if rot < 90:
-                    self.set_cursor(Gdk.CursorType.BOTTOM_RIGHT_CORNER)
-                elif rot < 180:
-                    self.set_cursor(Gdk.CursorType.BOTTOM_LEFT_CORNER)
-                elif rot < 270:
-                    self.set_cursor(Gdk.CursorType.TOP_LEFT_CORNER)
-                else:
-                    self.set_cursor(Gdk.CursorType.TOP_RIGHT_CORNER)
+                for cursor_rot in sorted(resize_cursors):
+                    if rot < cursor_rot:
+                        self.set_cursor(resize_cursors[cursor_rot])
+                        return
 
-                # dont check box if we have a hit
-                return
+        resize_cursors_edge = {
+            90: Gdk.CursorType.BOTTOM_SIDE,
+            180: Gdk.CursorType.LEFT_SIDE,
+            270: Gdk.CursorType.TOP_SIDE,
+            360: Gdk.CursorType.RIGHT_SIDE
+        }
 
         for actor in self.edge_handles.values():
             if actor.is_clicked(self.relative_position(event)):
-
                 rot = (self.get_rotation(event) - 45) % 360
-                if rot < 90:
-                    self.set_cursor(Gdk.CursorType.BOTTOM_SIDE)
-                elif rot < 180:
-                    self.set_cursor(Gdk.CursorType.LEFT_SIDE)
-                elif rot < 270:
-                    self.set_cursor(Gdk.CursorType.TOP_SIDE)
-                else:
-                    self.set_cursor(Gdk.CursorType.RIGHT_SIDE)
-
-                # dont check box if we have a hit
-                return
+                for cursor_rot in sorted(resize_cursors_edge):
+                    if rot < cursor_rot:
+                        self.set_cursor(resize_cursors_edge[cursor_rot])
+                        return
 
         if self.box_actor.is_clicked(self.relative_position(event), self.corner_handles):
             # inside box
-            self.set_cursor(Gdk.CursorType.PLUS)
+            self.set_cursor(Gdk.CursorType.ARROW)
         else:
             # rotate
             self.set_cursor(Gdk.CursorType.EXCHANGE)
