@@ -70,6 +70,7 @@ class HandleActor():
         self.clicked = False
         self.initital_position = self.position
         self.drag = drag
+        self.size = 1.0
 
     def is_clicked(self, click):
         vclick = Graphene.Vec2.alloc()
@@ -78,7 +79,7 @@ class HandleActor():
         vpos.init(self.position[0], self.position[1])
         vdistance = vclick.subtract(vpos)
 
-        return vdistance.length() < 0.1
+        return vdistance.length() < 0.1 * self.size
 
     def reposition(self, matrix, aspect):
             vector = numpy.array([self.initital_position[0] * math.pi,
@@ -87,13 +88,19 @@ class HandleActor():
 
             self.position = (vector_transformed[0] / aspect, -vector_transformed[1])
 
+    def distance_to(self, actor):
+        distance = array(self.position) - array(actor.position)
+        return numpy.sqrt(distance.dot(distance))
+
     def model_matrix(self):
         model_matrix = Graphene.Matrix.alloc()
+
+        model_matrix.init_scale(self.size, self.size, 1.0)
 
         translation_vector = Graphene.Point3D.alloc()
         translation_vector.init(self.position[0], self.position[1], 0)
 
-        model_matrix.init_translate(translation_vector)
+        model_matrix.translate(translation_vector)
 
         return matrix_to_array(model_matrix)
 
@@ -143,12 +150,8 @@ class TransformScene(Scene):
         self.graphics["video"] = VideoGraphic()
         self.graphics["box"] = BoxGraphic(1280, 720, self.corner_handles.values())
 
-        self.handles = []
-
-        for handle in self.corner_handles.values():
-            self.handles.append(handle)
-        for handle in self.edge_handles.values():
-            self.handles.append(handle)
+        self.handles = list(self.corner_handles.values()) \
+                       + list(self.edge_handles.values())
 
         self.box_actor = BoxActor(self.translate)
         self.selected = False
@@ -169,9 +172,19 @@ class TransformScene(Scene):
 
         self.init = True
 
+
     def reposition(self, matrix):
+        distance1 = self.corner_handles["1BL"].distance_to(self.edge_handles["bottom"])
+        distance2 = self.corner_handles["2TL"].distance_to(self.edge_handles["left"])
+
+        if distance1 < 0.2 or distance2 < 0.2:
+            size = 5.0 * min(distance1, distance2)
+        else:
+            size = 1.0
+
         for handle in self.handles:
             handle.reposition(matrix, self.aspect())
+            handle.size = size
 
     def draw(self, sink, context, video_texture, w, h):
         if not self.init:
