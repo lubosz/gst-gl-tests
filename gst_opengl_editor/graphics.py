@@ -6,9 +6,6 @@ from math import pi
 from OpenGL.GL import *
 from gst_opengl_editor.opengl import *
 
-def hex_to_rgb(value):
-    return tuple(float(int(value[i:i + 2], 16)) / 255.0 for i in range(0, 6, 2))
-
 
 class Graphic():
     def __init__(self):
@@ -44,8 +41,7 @@ class HandleGraphic(Graphic):
         Graphic.__init__(self)
         self.draw_clicked = False
         self.width, self.height = width, height
-        self.color = hex_to_rgb('49a0e0')
-        self.clickedColor = hex_to_rgb('ff8b1b')
+        self.draw_hovered = False
 
     def init_gl(self, context, canvas_width, canvas_height):
         self.texture = CairoTexture(GL_TEXTURE1, self.width, self.height)
@@ -53,17 +49,27 @@ class HandleGraphic(Graphic):
 
         self.texture_clicked = CairoTexture(GL_TEXTURE2, self.width, self.height)
         self.draw_clicked = True
+        self.draw_hovered = True
         self.texture_clicked.draw(self.draw_cairo)
         self.draw_clicked = False
+
+        self.texture_hovered = CairoTexture(GL_TEXTURE3, self.width, self.height)
+        self.draw_hovered = True
+        self.texture_hovered.draw(self.draw_cairo)
+        self.draw_hovered = False
 
         self.shader = Shader(context, "simple.vert", "cairo.frag")
         self.mesh = PlaneCairo(canvas_width, canvas_height, self.width, self.height)
 
-    def rebind_texture(self, actor_clicked):
+    def rebind_texture(self, actor_hovered, actor_clicked):
         if actor_clicked:
             glActiveTexture(GL_TEXTURE2)
             glBindTexture(GL_TEXTURE_RECTANGLE, self.texture_clicked.texture_handle)
             self.shader.shader.set_uniform_1i("cairoSampler", 2)
+        elif actor_hovered:
+            glActiveTexture(GL_TEXTURE3)
+            glBindTexture(GL_TEXTURE_RECTANGLE, self.texture_hovered.texture_handle)
+            self.shader.shader.set_uniform_1i("cairoSampler", 3)
         else:
             glActiveTexture(GL_TEXTURE1)
             glBindTexture(GL_TEXTURE_RECTANGLE, self.texture.texture_handle)
@@ -74,7 +80,7 @@ class HandleGraphic(Graphic):
         self.mesh.bind(self.shader)
 
         for actor in actors:
-            self.rebind_texture(actor.clicked)
+            self.rebind_texture(actor.hovered, actor.clicked)
             self.shader.set_matrix("mvp", actor.model_matrix())
             self.mesh.draw()
 
@@ -82,7 +88,19 @@ class HandleGraphic(Graphic):
 
     def draw_cairo(self, cr, w, h):
 
-        x, y, radius = 0.5, 0.5, 0.25
+        x, y, radius = 0.5, 0.5, 0.15
+        glow_radius = 1.05
+        glow = 0.9
+
+        if self.draw_clicked:
+            outer_color = .2
+            glow_radius = 1.08
+        elif self.draw_hovered:
+            outer_color = .8
+            glow_radius = 1.08
+        else:
+            outer_color = .5
+            glow_radius = 1.01
 
         cr.save()
         cr.scale(w, h)
@@ -91,46 +109,21 @@ class HandleGraphic(Graphic):
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.0)
         cr.paint()
 
+        cr.set_source_rgba(glow, glow, glow, 0.9)
+        cr.arc(x, y, radius * glow_radius, 0, 2 * pi)
+        cr.fill()
+
         from_point = (x, y - radius)
         to_point = (x, y + radius)
-
         linear = cairo.LinearGradient(*(from_point + to_point))
+        linear.add_color_stop_rgba(0.00, outer_color, outer_color, outer_color, 1)
+        linear.add_color_stop_rgba(0.55, .1, .1, .1, 1)
+        linear.add_color_stop_rgba(0.65, .1, .1, .1, 1)
+        linear.add_color_stop_rgba(1.00, outer_color, outer_color, outer_color, 1)
 
-        linear.add_color_stop_rgba(0.00, .6, .6, .6, .5)
-        linear.add_color_stop_rgba(0.50, .4, .4, .4, .1)
-        linear.add_color_stop_rgba(0.60, .4, .4, .4, .1)
-        linear.add_color_stop_rgba(1.00, .6, .6, .6, .5)
-
-        # x, y, radius
-        inner_circle = (x + .1, y - .1, radius / 10.0)
-        outer_circle = (x, y, radius)
-
-        radial = cairo.RadialGradient(*(inner_circle + outer_circle))
-        if self.draw_clicked:
-            radial.add_color_stop_rgb(0.0, *self.clickedColor)
-        else:
-            radial.add_color_stop_rgb(0, *self.color)
-        radial.add_color_stop_rgb(1, 0.1, 0.1, 0.1)
-
-        glow_multiplier = 1.5
-
-        inner_circle = (x, y, radius * .9)
-        outer_circle = (x, y, radius * glow_multiplier)
-
-        radial_glow = cairo.RadialGradient(*(inner_circle+outer_circle))
-        radial_glow.add_color_stop_rgba(0, 0.9, 0.9, 0.9, 1)
-        radial_glow.add_color_stop_rgba(1, 0.9, 0.9, 0.9, 0)
-
-        cr.set_source(radial_glow)
-        cr.arc(x, y, radius * glow_multiplier, 0, 2 * pi)
-        cr.fill()
-
-        cr.arc(x, y, radius * .9, 0, 2 * pi)
-        cr.set_source(radial)
-        cr.fill()
-
-        cr.arc(x, y, radius * .9, 0, 2 * pi)
         cr.set_source(linear)
+
+        cr.arc(x, y, radius * .9, 0, 2 * pi)
         cr.fill()
 
         cr.restore()
@@ -145,16 +138,16 @@ class BoxGraphic(Graphic):
             self.handle_positions.append(handle.position)
 
     def init_gl(self, context, canvas_width, canvas_height):
-        self.texture = CairoTexture(GL_TEXTURE3, self.width, self.height)
+        self.texture = CairoTexture(GL_TEXTURE4, self.width, self.height)
         self.texture.draw(self.draw_cairo)
 
         self.shader = Shader(context, "simple.vert", "cairo.frag")
         self.mesh = PlaneCairo(canvas_width, canvas_height, self.width, self.height)
 
     def rebind_texture(self):
-        glActiveTexture(GL_TEXTURE3)
+        glActiveTexture(GL_TEXTURE4)
         glBindTexture(GL_TEXTURE_RECTANGLE, self.texture.texture_handle)
-        self.shader.shader.set_uniform_1i("cairoSampler", 3)
+        self.shader.shader.set_uniform_1i("cairoSampler", 4)
 
     def draw(self, handles):
         self.shader.use()

@@ -79,11 +79,15 @@ class HandleActor():
         vpos.init(self.position[0], self.position[1])
         vdistance = vclick.subtract(vpos)
 
-        return vdistance.length() < 0.1 * self.size
+        hovered = vdistance.length() < 0.05 * self.size
+
+        self.hovered = hovered
+
+        return hovered
 
     def reposition(self, matrix, aspect):
             vector = numpy.array([self.initital_position[0] * math.pi,
-                                  self.initital_position[1], 0, 1])
+                                  -self.initital_position[1], 0, 1])
             vector_transformed = numpy.dot(vector, matrix)
 
             self.position = (vector_transformed[0] / aspect, -vector_transformed[1])
@@ -172,13 +176,12 @@ class TransformScene(Scene):
 
         self.init = True
 
-
     def reposition(self, matrix):
         distance1 = self.corner_handles["1BL"].distance_to(self.edge_handles["bottom"])
         distance2 = self.corner_handles["2TL"].distance_to(self.edge_handles["left"])
 
-        if distance1 < 0.2 or distance2 < 0.2:
-            size = 5.0 * min(distance1, distance2)
+        if distance1 < 0.1 or distance2 < 0.1:
+            size = 10.0 * min(distance1, distance2)
         else:
             size = 1.0
 

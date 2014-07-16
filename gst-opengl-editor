@@ -83,6 +83,7 @@ class GstOpenGLEditor():
         #slider_box = Transformation3DSliderBox(transform)
 
         sink.scene.slider_box = slider_box
+        #sink.scene.reposition(slider_box.build_mvp())
         sink.scene.window = window
 
         box.add(slider_box)
