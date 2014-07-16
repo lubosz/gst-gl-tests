@@ -150,6 +150,9 @@ class TransformScene(Scene):
         self.graphics["video"] = VideoGraphic()
         self.graphics["box"] = BoxGraphic(1280, 720, self.corner_handles.values())
 
+        self.graphics["background"] = BackgroundGraphic(1280, 720)
+
+
         self.handles = list(self.corner_handles.values()) \
                        + list(self.edge_handles.values())
 
@@ -187,9 +190,12 @@ class TransformScene(Scene):
     def init_gl(self, context):
         Scene.init_gl(self, context)
 
-        self.graphics["handle"].init_gl(context, self.width, self.height)
-        self.graphics["box"].init_gl(context, self.width, self.height)
+        cairo_shader = Shader(context, "simple.vert", "cairo.frag")
+
+        self.graphics["handle"].init_gl(context, self.width, self.height, cairo_shader)
+        self.graphics["box"].init_gl(context, self.width, self.height, cairo_shader)
         self.graphics["video"].init_gl(context)
+        self.graphics["background"].init_gl(context, self.width, self.height, cairo_shader)
 
         self.init = True
 
@@ -218,14 +224,17 @@ class TransformScene(Scene):
         glClearColor(0, 0, 0, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-
-
+        context.clear_shader()
+        self.graphics["background"].draw()
+        context.clear_shader()
         self.graphics["video"].draw(video_texture, matrix_to_array(self.zoom_matrix))
         context.clear_shader()
 
         if self.selected:
             self.graphics["box"].draw(self.corner_handles)
             self.graphics["handle"].draw_actors(self.handles)
+
+
 
         return True
 

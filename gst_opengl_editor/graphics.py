@@ -27,6 +27,7 @@ class VideoGraphic(Graphic):
         self.shader.use()
         self.mesh.bind(self.shader)
 
+        glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, video_texture)
         self.shader.shader.set_uniform_1i("videoSampler", 0)
 
@@ -43,7 +44,7 @@ class HandleGraphic(Graphic):
         self.width, self.height = width, height
         self.draw_hovered = False
 
-    def init_gl(self, context, canvas_width, canvas_height):
+    def init_gl(self, context, canvas_width, canvas_height, shader):
         self.texture = CairoTexture(GL_TEXTURE1, self.width, self.height)
         self.texture.draw(self.draw_cairo)
 
@@ -58,7 +59,7 @@ class HandleGraphic(Graphic):
         self.texture_hovered.draw(self.draw_cairo)
         self.draw_hovered = False
 
-        self.shader = Shader(context, "simple.vert", "cairo.frag")
+        self.shader = shader
         self.mesh = PlaneCairo(canvas_width, canvas_height, self.width, self.height)
 
     def rebind_texture(self, actor_hovered, actor_clicked):
@@ -137,11 +138,11 @@ class BoxGraphic(Graphic):
         for handle in handles:
             self.handle_positions.append(handle.position)
 
-    def init_gl(self, context, canvas_width, canvas_height):
+    def init_gl(self, context, canvas_width, canvas_height, shader):
         self.texture = CairoTexture(GL_TEXTURE4, self.width, self.height)
         self.texture.draw(self.draw_cairo)
 
-        self.shader = Shader(context, "simple.vert", "cairo.frag")
+        self.shader = shader
         self.mesh = PlaneCairo(canvas_width, canvas_height, self.width, self.height)
 
     def rebind_texture(self):
@@ -196,5 +197,64 @@ class BoxGraphic(Graphic):
         cr.set_line_join(cairo.LINE_JOIN_BEVEL)
 
         cr.stroke()
+
+        cr.restore()
+
+
+class BackgroundGraphic(Graphic):
+    def __init__(self, width, height):
+        Graphic.__init__(self)
+        self.width, self.height = width, height
+
+    def init_gl(self, context, canvas_width, canvas_height, shader):
+        self.texture = CairoTexture(GL_TEXTURE5, self.width, self.height)
+        self.texture.draw(self.draw_cairo)
+
+        self.shader = shader
+        self.mesh = PlaneCairo(canvas_width, canvas_height, self.width, self.height)
+
+    def rebind_texture(self):
+        glActiveTexture(GL_TEXTURE5)
+        glBindTexture(GL_TEXTURE_RECTANGLE, self.texture.texture_handle)
+        self.shader.shader.set_uniform_1i("cairoSampler", 5)
+
+    def draw(self):
+        self.shader.use()
+        self.mesh.bind(self.shader)
+        #self.texture.draw(self.draw_cairo)
+        self.rebind_texture()
+        self.shader.set_matrix("mvp", numpy.identity(4) / 2)
+        self.mesh.draw()
+        self.mesh.unbind()
+
+    def convert_range(self, pos):
+        return ((pos[0] + 1) / 2.0,
+                (-pos[1] + 1) / 2.0)
+
+    def draw_cairo(self, cr, w, h):
+        x, y, radius = 0.5, 0.5, 0.15
+        glow_radius = 1.05
+        glow = 0.5
+        outer_color = 0.3
+
+        cr.save()
+        cr.scale(w, h)
+        # clear background
+        cr.set_operator(cairo.OPERATOR_OVER)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.0)
+        cr.paint()
+
+        from_point = (x, 0)
+        to_point = (x, 1)
+        linear = cairo.LinearGradient(*(from_point + to_point))
+        linear.add_color_stop_rgba(0.00, outer_color, outer_color, outer_color, 1)
+        linear.add_color_stop_rgba(0.65, .4, .4, .6, 0)
+        linear.add_color_stop_rgba(0.85, .2, .2, .4, 0)
+        linear.add_color_stop_rgba(1.00, outer_color, outer_color, outer_color, 1)
+
+        cr.set_source(linear)
+
+        cr.rectangle(0, 0, 1, 1)
+        cr.fill()
 
         cr.restore()
