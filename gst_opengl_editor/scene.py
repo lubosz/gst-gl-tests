@@ -148,10 +148,9 @@ class TransformScene(Scene):
 
         self.graphics["handle"] = HandleGraphic(100, 100)
         self.graphics["video"] = VideoGraphic()
-        self.graphics["box"] = BoxGraphic(1280, 720, self.corner_handles.values())
+        self.graphics["box"] = BoxGraphic(self.corner_handles.values())
 
-        self.graphics["background"] = BackgroundGraphic(1280, 720)
-
+        self.graphics["background"] = BackgroundGraphic()
 
         self.handles = list(self.corner_handles.values()) \
                        + list(self.edge_handles.values())
@@ -170,7 +169,6 @@ class TransformScene(Scene):
         if deltas[0]:
             v -= deltas[2] * 0.1 * self.zoom
         self.zoom_slider.set_value(v)
-
 
     def set_zoom_matrix(self, zoom):
         self.zoom_matrix = Graphene.Matrix.alloc()
@@ -192,10 +190,13 @@ class TransformScene(Scene):
 
         cairo_shader = Shader(context, "simple.vert", "cairo.frag")
 
-        self.graphics["handle"].init_gl(context, self.width, self.height, cairo_shader)
-        self.graphics["box"].init_gl(context, self.width, self.height, cairo_shader)
+        self.graphics["handle"].init_gl(
+            context, self.width, self.height, cairo_shader)
+        self.graphics["box"].init_gl(
+            context, self.width, self.height, cairo_shader)
         self.graphics["video"].init_gl(context)
-        self.graphics["background"].init_gl(context, self.width, self.height, cairo_shader)
+        self.graphics["background"].init_gl(
+            context, self.width, self.height, cairo_shader)
 
         self.init = True
 
@@ -233,8 +234,6 @@ class TransformScene(Scene):
         if self.selected:
             self.graphics["box"].draw(self.corner_handles)
             self.graphics["handle"].draw_actors(self.handles)
-
-
 
         return True
 

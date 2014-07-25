@@ -39,6 +39,7 @@ class GstOpenGLEditor():
         Gst.init([])
 
         width, height = 1280, 720
+        #width, height = 640, 480
         self.aspect = width/height
 
         pipeline = Gst.Pipeline()
@@ -100,8 +101,6 @@ class GstOpenGLEditor():
         self.zoom_slider.connect("value-changed", sink.scene.set_zoom)
 
         sink.scene.zoom_slider = self.zoom_slider
-
-
 
         box.add(self.zoom_slider)
 

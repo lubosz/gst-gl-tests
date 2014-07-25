@@ -88,9 +88,7 @@ class HandleGraphic(Graphic):
         self.mesh.unbind()
 
     def draw_cairo(self, cr, w, h):
-
         x, y, radius = 0.5, 0.5, 0.15
-        glow_radius = 1.05
         glow = 0.9
 
         if self.draw_clicked:
@@ -131,19 +129,18 @@ class HandleGraphic(Graphic):
 
 
 class BoxGraphic(Graphic):
-    def __init__(self, width, height, handles):
+    def __init__(self, handles):
         Graphic.__init__(self)
-        self.width, self.height = width, height
         self.handle_positions = []
         for handle in handles:
             self.handle_positions.append(handle.position)
 
     def init_gl(self, context, canvas_width, canvas_height, shader):
-        self.texture = CairoTexture(GL_TEXTURE4, self.width, self.height)
+        self.texture = CairoTexture(GL_TEXTURE4, canvas_width, canvas_height)
         self.texture.draw(self.draw_cairo)
 
         self.shader = shader
-        self.mesh = PlaneCairo(canvas_width, canvas_height, self.width, self.height)
+        self.mesh = PlaneCairo(canvas_width, canvas_height, canvas_width, canvas_height)
 
     def rebind_texture(self):
         glActiveTexture(GL_TEXTURE4)
@@ -166,7 +163,8 @@ class BoxGraphic(Graphic):
 
         self.mesh.unbind()
 
-    def convert_range(self, pos):
+    @staticmethod
+    def convert_range(pos):
         return ((pos[0] + 1) / 2.0,
                 (-pos[1] + 1) / 2.0)
 
@@ -202,16 +200,15 @@ class BoxGraphic(Graphic):
 
 
 class BackgroundGraphic(Graphic):
-    def __init__(self, width, height):
+    def __init__(self):
         Graphic.__init__(self)
-        self.width, self.height = width, height
 
     def init_gl(self, context, canvas_width, canvas_height, shader):
-        self.texture = CairoTexture(GL_TEXTURE5, self.width, self.height)
+        self.texture = CairoTexture(GL_TEXTURE5, canvas_width, canvas_height)
         self.texture.draw(self.draw_cairo)
 
         self.shader = shader
-        self.mesh = PlaneCairo(canvas_width, canvas_height, self.width, self.height)
+        self.mesh = PlaneCairo(canvas_width, canvas_height, canvas_width, canvas_height)
 
     def rebind_texture(self):
         glActiveTexture(GL_TEXTURE5)
@@ -221,20 +218,19 @@ class BackgroundGraphic(Graphic):
     def draw(self):
         self.shader.use()
         self.mesh.bind(self.shader)
-        #self.texture.draw(self.draw_cairo)
         self.rebind_texture()
         self.shader.set_matrix("mvp", numpy.identity(4) / 2)
         self.mesh.draw()
         self.mesh.unbind()
 
-    def convert_range(self, pos):
+    @staticmethod
+    def convert_range(pos):
         return ((pos[0] + 1) / 2.0,
                 (-pos[1] + 1) / 2.0)
 
-    def draw_cairo(self, cr, w, h):
+    @staticmethod
+    def draw_cairo(cr, w, h):
         x, y, radius = 0.5, 0.5, 0.15
-        glow_radius = 1.05
-        glow = 0.5
         outer_color = 0.3
 
         cr.save()
