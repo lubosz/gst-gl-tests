@@ -9,7 +9,7 @@ from gst_opengl_editor.widgets import *
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-video_uri = "file:///home/bmonkey/workspace/ges/data/hd/Return to split point.mp4"
+video_uri = "file:///home/bmonkey/Documents/guadec2014/kittens.mp4"
 
 
 def quit_app(widget, pipeline):
