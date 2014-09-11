@@ -25,6 +25,10 @@ class GstOpenGLEditor():
 
     @staticmethod
     def bus_cb(bus, message):
+    
+        #nav_type = GstVideo.Navigation.message_get_type (message)
+        #print(nav_type)
+    
         if message.type == Gst.MessageType.EOS:
             print("eos")
             Gtk.main_quit()
@@ -32,6 +36,7 @@ class GstOpenGLEditor():
             print(message.parse_error())
             Gtk.main_quit()
         else:
+            #print("i've got a message for you", message.type)
             pass
 
     def __init__(self):
@@ -67,7 +72,7 @@ class GstOpenGLEditor():
         bus = pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect("message", self.bus_cb)
-
+        
         window = Gtk.Window()
         window.connect("delete-event", self.window_closed, pipeline)
         window.connect("key-press-event", self.key_pressed, pipeline)
