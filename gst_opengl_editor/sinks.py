@@ -42,6 +42,8 @@ class CairoGLSink(GstOverlaySink):
         self.connect("motion-notify-event", self.scene.on_motion)
         self.connect("scroll-event", self.scene.on_scroll)
 
+        self.sink.handle_events(False)
+
         self.canvas_width, self.canvas_height = w, h
         self.aspect = w/h
 
