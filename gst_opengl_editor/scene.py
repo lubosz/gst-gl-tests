@@ -286,8 +286,7 @@ class TransformScene(Scene):
 
         oldpos = array(self.oldpos)
 
-        translation = array([pos[0] * self.aspect(),
-                             - pos[1]])
+        translation = array([pos[0] / 2.0, -pos[1] / 2.0])
 
         translation /= self.zoom
 
@@ -314,8 +313,8 @@ class TransformScene(Scene):
 
                 pos = self.relative_position(event)
 
-                self.oldpos = ((self.slider_box.sliders["translation-x"].get() - pos[0] / self.zoom * self.aspect()),
-                               self.slider_box.sliders["translation-y"].get() + pos[1] / self.zoom)
+                self.oldpos = ((self.slider_box.sliders["translation-x"].get() - pos[0] / self.zoom * 0.5),
+                               self.slider_box.sliders["translation-y"].get() + pos[1] / self.zoom * 0.5)
             else:
                 #clicked outside of box
                 self.action = self.rotate
